@@ -166,3 +166,36 @@ export interface ScanProgress {
   totalPages: number;
   message: string;
 }
+
+export interface ReactionItem {
+  typeId: number;
+  name: string;
+  quantity: number;
+  role: "input" | "output";
+  group: string;
+}
+
+export interface ReactionItemPrice extends ReactionItem {
+  buyPrice: number;
+  sellPrice: number;
+  totalBuy: number;
+  totalSell: number;
+}
+
+export interface ReactionPricesResponse {
+  items: ReactionItemPrice[];
+  updatedAt: string;
+}
+
+export const NEURALINK_ENHANCER_ITEMS: ReactionItem[] = [
+  { typeId: 28694, name: "Amber Mykoserocin", quantity: 880, role: "input", group: "Gas" },
+  { typeId: 28686, name: "Pure Synth Blue Pill Booster", quantity: 1920, role: "input", group: "Boosters" },
+  { typeId: 28697, name: "Golden Mykoserocin", quantity: 909, role: "input", group: "Gas" },
+  { typeId: 28687, name: "Pure Synth Crash Booster", quantity: 2200, role: "input", group: "Boosters" },
+  { typeId: 57460, name: "Axosomatic Neurolink Enhancer", quantity: 440, role: "input", group: "Boosters" },
+  { typeId: 30375, name: "Fullerite-C28", quantity: 3000, role: "input", group: "Fullerites" },
+  { typeId: 30376, name: "Fullerite-C32", quantity: 3000, role: "input", group: "Fullerites" },
+  { typeId: 30309, name: "Graphene Nanoribbons", quantity: 3600, role: "input", group: "Materials" },
+  { typeId: 28670, name: "Synth Blue Pill Booster", quantity: 113, role: "output", group: "Output" },
+  { typeId: 28672, name: "Synth Crash Booster", quantity: 129, role: "output", group: "Output" },
+];

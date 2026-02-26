@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getMarketPrices, getPublicContracts, getContractItems, getTypeNames, searchTypes, getRegionOrders } from "./esi";
-import { EVE_REGIONS, type AnalyzedContract, type AnalyzedItem, type ScanProgress } from "@shared/schema";
+import { EVE_REGIONS, NEURALINK_ENHANCER_ITEMS, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice } from "@shared/schema";
 import { log } from "./index";
 
 let scanProgress: ScanProgress = {
@@ -140,6 +140,35 @@ export async function registerRoutes(
       const results = await searchTypes(q);
       res.json(results);
     } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/reactions/neuralink/prices", async (_req, res) => {
+    try {
+      const JITA_REGION = 10000002;
+      log("Fetching reaction prices from Jita...", "esi");
+
+      const pricePromises = NEURALINK_ENHANCER_ITEMS.map(async (item) => {
+        const orders = await getRegionOrders(JITA_REGION, item.typeId);
+        return {
+          ...item,
+          buyPrice: orders.buyMax,
+          sellPrice: orders.sellMin,
+          totalBuy: orders.buyMax * item.quantity,
+          totalSell: orders.sellMin * item.quantity,
+        } as ReactionItemPrice;
+      });
+
+      const items = await Promise.all(pricePromises);
+      log(`Fetched prices for ${items.length} reaction items`, "esi");
+
+      res.json({
+        items,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      log(`Error fetching reaction prices: ${err.message}`, "esi");
       res.status(500).json({ message: err.message });
     }
   });
