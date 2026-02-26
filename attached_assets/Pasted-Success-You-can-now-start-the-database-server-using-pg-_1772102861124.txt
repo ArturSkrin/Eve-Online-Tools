@@ -1,0 +1,63 @@
+Success. You can now start the database server using:
+
+
+    pg_ctl -D /var/lib/postgresql/data -l logfile start
+
+
+waiting for server to start....2026-02-26 10:34:02.310 UTC [41] LOG:  starting PostgreSQL 16.12 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+
+2026-02-26 10:34:02.313 UTC [41] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+
+2026-02-26 10:34:02.325 UTC [44] LOG:  database system was shut down at 2026-02-26 10:34:01 UTC
+
+2026-02-26 10:34:02.333 UTC [41] LOG:  database system is ready to accept connections
+
+sh: locale: not found
+
+2026-02-26 10:34:01.405 UTC [35] WARNING:  no usable system locales were found
+
+initdb: warning: enabling "trust" authentication for local connections
+
+initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+
+2026-02-26 10:34:02.726 UTC [1] LOG:  starting PostgreSQL 16.12 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+
+2026-02-26 10:34:02.726 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+
+2026-02-26 10:34:02.726 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+
+2026-02-26 10:34:02.734 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+
+2026-02-26 10:34:02.745 UTC [57] LOG:  database system was shut down at 2026-02-26 10:34:02 UTC
+
+2026-02-26 10:34:02.754 UTC [1] LOG:  database system is ready to accept connections
+
+2026-02-26 10:39:02.833 UTC [55] LOG:  checkpoint starting: time
+
+2026-02-26 10:39:07.079 UTC [55] LOG:  checkpoint complete: wrote 45 buffers (0.3%); 0 WAL file(s) added, 0 removed, 0 recycled; write=4.220 s, sync=0.013 s, total=4.246 s; sync files=12, longest=0.008 s, average=0.002 s; distance=260 kB, estimate=260 kB; lsn=0/195FC10, redo lsn=0/195FBD8
+
+2026-02-26 10:46:46.997 UTC [1159] ERROR:  relation "scan_history" does not exist at character 13
+
+2026-02-26 10:46:46.997 UTC [1159] STATEMENT:  insert into "scan_history" ("id", "region_id", "region_name", "total_contracts", "analyzed_contracts", "profitable_contracts", "best_margin", "scanned_at") values (default, $1, $2, $3, $4, $5, $6, default) returning "id", "region_id", "region_name", "total_contracts", "analyzed_contracts", "profitable_contracts", "best_margin", "scanned_at"
+
+2026-02-26 10:46:54.499 UTC [1168] ERROR:  relation "scan_history" does not exist at character 13
+
+2026-02-26 10:46:54.499 UTC [1168] STATEMENT:  insert into "scan_history" ("id", "region_id", "region_name", "total_contracts", "analyzed_contracts", "profitable_contracts", "best_margin", "scanned_at") values (default, $1, $2, $3, $4, $5, $6, default) returning "id", "region_id", "region_name", "total_contracts", "analyzed_contracts", "profitable_contracts", "best_margin", "scanned_at"
+
+ done
+
+server started
+
+CREATE DATABASE
+
+
+
+/usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+
+
+waiting for server to shut down...2026-02-26 10:34:02.489 UTC [41] LOG:  received fast shutdown request
+
+.2026-02-26 10:34:02.493 UTC [41] LOG:  aborting any active transactions
+
+2026-02-26 10:34:02.496 UTC [41] LOG:  background worker "logical replication launcher" (PID 47) exited with exit code 1
+
