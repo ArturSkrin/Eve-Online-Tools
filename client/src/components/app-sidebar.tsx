@@ -1,4 +1,4 @@
-import { Search, Factory, History, BookmarkCheck, TrendingUp } from "lucide-react";
+import { Search, Factory, History, BookmarkCheck, TrendingUp, Home, FlaskConical, Beaker } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -14,30 +14,34 @@ import {
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 
-const navItems = [
+const contractItems = [
   {
     title: "Contract Scanner",
-    url: "/",
+    url: "/contracts",
     icon: Search,
-    description: "Find profitable contracts",
   },
   {
     title: "Manufacturing",
-    url: "/manufacturing",
+    url: "/contracts/manufacturing",
     icon: Factory,
-    description: "Calculate production costs",
   },
   {
     title: "Saved Deals",
-    url: "/saved",
+    url: "/contracts/saved",
     icon: BookmarkCheck,
-    description: "Your bookmarked contracts",
   },
   {
     title: "Scan History",
-    url: "/history",
+    url: "/contracts/history",
     icon: History,
-    description: "Previous scan results",
+  },
+];
+
+const reactionItems = [
+  {
+    title: "Neuralink Enhancer",
+    url: "/reactions",
+    icon: Beaker,
   },
 ];
 
@@ -60,7 +64,7 @@ export function AppSidebar() {
                 EVE ANALYZER
               </h1>
               <p className="text-xs text-muted-foreground font-mono">
-                Contract Scanner
+                Market Intelligence
               </p>
             </div>
           </div>
@@ -69,11 +73,39 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-            Navigation
+            Contracts
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => {
+              {contractItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/\s/g, "-")}`}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="w-4 h-4" />
+                        <span className="font-mono text-xs">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+            <FlaskConical className="w-3 h-3" />
+            Reactions
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {reactionItems.map((item) => {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
