@@ -17,6 +17,8 @@ import {
   ArrowUp,
   Loader2,
   AlertCircle,
+  Settings2,
+  Zap,
 } from "lucide-react";
 import { formatISK, formatNumber } from "@/lib/format";
 import type { ReactionPricesResponse, ReactionItemPrice } from "@shared/schema";
@@ -38,7 +40,9 @@ interface MarginResult {
 function calculateMargins(
   items: ReactionItemPrice[],
   salesTax: number,
-  brokerFee: number
+  brokerFee: number,
+  jobCost: number,
+  runs: number
 ): MarginResult[] {
   const inputs = items.filter((i) => i.role === "input");
   const outputs = items.filter((i) => i.role === "output");
@@ -48,19 +52,21 @@ function calculateMargins(
   const outputBuyTotal = outputs.reduce((s, i) => s + i.quantity * i.buyPrice, 0);
   const outputSellTotal = outputs.reduce((s, i) => s + i.quantity * i.sellPrice, 0);
 
+  const totalJobCost = jobCost * runs;
+
   const taxRate = salesTax / 100;
   const brokerRate = brokerFee / 100;
 
-  const buyInstant = (total: number) => total;
   const buyOrder = (total: number) => total * (1 + brokerRate);
-  const sellInstant = (total: number) => total * (1 - taxRate);
+  const buyInstant = (total: number) => total;
   const sellOrder = (total: number) => total * (1 - taxRate - brokerRate);
+  const sellInstant = (total: number) => total * (1 - taxRate);
 
   const scenarios: MarginResult[] = [
     {
       label: "Buy → Sell",
-      description: "Buy orders (cheap) → Sell orders (expensive, wait)",
-      inputCost: buyOrder(inputBuyTotal),
+      description: "Place buy orders (cheap, wait) → Place sell orders (expensive, wait)",
+      inputCost: buyOrder(inputBuyTotal) + totalJobCost,
       outputRevenue: sellOrder(outputSellTotal),
       margin: 0,
       marginPercent: 0,
@@ -68,8 +74,8 @@ function calculateMargins(
     },
     {
       label: "Buy → Buy",
-      description: "Buy orders (cheap) → Instant sell (fast)",
-      inputCost: buyOrder(inputBuyTotal),
+      description: "Place buy orders (cheap, wait) → Instant sell into buy orders (fast)",
+      inputCost: buyOrder(inputBuyTotal) + totalJobCost,
       outputRevenue: sellInstant(outputBuyTotal),
       margin: 0,
       marginPercent: 0,
@@ -77,8 +83,8 @@ function calculateMargins(
     },
     {
       label: "Sell → Sell",
-      description: "Instant buy (fast) → Sell orders (expensive, wait)",
-      inputCost: buyInstant(inputSellTotal),
+      description: "Instant buy from sell orders (fast) → Place sell orders (expensive, wait)",
+      inputCost: buyInstant(inputSellTotal) + totalJobCost,
       outputRevenue: sellOrder(outputSellTotal),
       margin: 0,
       marginPercent: 0,
@@ -86,8 +92,8 @@ function calculateMargins(
     },
     {
       label: "Sell → Buy",
-      description: "Instant buy (fast) → Instant sell (fast)",
-      inputCost: buyInstant(inputSellTotal),
+      description: "Instant buy from sell orders (fast) → Instant sell into buy orders (fast)",
+      inputCost: buyInstant(inputSellTotal) + totalJobCost,
       outputRevenue: sellInstant(outputBuyTotal),
       margin: 0,
       marginPercent: 0,
@@ -174,7 +180,7 @@ function MarginCard({ result }: { result: MarginResult }) {
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground flex items-center gap-1">
-              <ShoppingCart className="w-3 h-3" /> Input cost
+              <ShoppingCart className="w-3 h-3" /> Input cost + job
             </span>
             <span className="font-mono text-destructive">{formatISK(result.inputCost)}</span>
           </div>
@@ -199,23 +205,30 @@ function MarginCard({ result }: { result: MarginResult }) {
 export default function ReactionsPage() {
   const [salesTax, setSalesTax] = useState(3.6);
   const [brokerFee, setBrokerFee] = useState(1.5);
+  const [jobCost, setJobCost] = useState(138360);
+  const [runs, setRuns] = useState(1);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ReactionPricesResponse>({
-    queryKey: ["/api/reactions/neuralink/prices"],
+    queryKey: ["/api/reactions/neuralink/prices", runs],
+    queryFn: async () => {
+      const res = await fetch(`/api/reactions/neuralink/prices?runs=${runs}`);
+      if (!res.ok) throw new Error("Failed to fetch prices");
+      return res.json();
+    },
     staleTime: 5 * 60 * 1000,
   });
 
   const margins = useMemo(() => {
     if (!data?.items) return [];
-    return calculateMargins(data.items, salesTax, brokerFee);
-  }, [data, salesTax, brokerFee]);
+    return calculateMargins(data.items, salesTax, brokerFee, jobCost, runs);
+  }, [data, salesTax, brokerFee, jobCost, runs]);
 
   const groupedItems = useMemo(() => {
     if (!data?.items) return [];
     const groups: { group: string; items: ReactionItemPrice[] }[] = [];
     const groupMap = new Map<string, ReactionItemPrice[]>();
 
-    const groupOrder = ["Gas", "Boosters", "Fullerites", "Materials", "Output"];
+    const groupOrder = ["Fuel", "Gas", "Materials", "Output"];
     for (const item of data.items) {
       if (!groupMap.has(item.group)) groupMap.set(item.group, []);
       groupMap.get(item.group)!.push(item);
@@ -247,16 +260,18 @@ export default function ReactionsPage() {
     };
   }, [data]);
 
+  const totalOutput = runs * 20;
+
   return (
     <div className="p-6 space-y-6" data-testid="page-reactions">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div className="space-y-1">
           <h1 className="font-['Oxanium'] text-2xl font-bold tracking-wider text-foreground flex items-center gap-3">
             <FlaskConical className="w-6 h-6 text-chart-4" />
-            Neuralink Enhancer
+            Axosomatic Neurolink Enhancer
           </h1>
           <p className="text-sm text-muted-foreground font-mono">
-            Reaction profitability calculator &middot; Jita prices
+            Reaction profitability &middot; {runs} run{runs > 1 ? "s" : ""} &middot; {totalOutput} units output &middot; Jita prices
           </p>
         </div>
         <Button
@@ -271,45 +286,86 @@ export default function ReactionsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="font-mono text-xs tracking-widest uppercase text-muted-foreground">
-              Tax Settings
+            <CardTitle className="font-mono text-xs tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+              <Settings2 className="w-3.5 h-3.5" />
+              Reaction Settings
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="salesTax" className="font-mono text-xs">Sales Tax %</Label>
-                <Input
-                  id="salesTax"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="15"
-                  value={salesTax}
-                  onChange={(e) => setSalesTax(parseFloat(e.target.value) || 0)}
-                  className="font-mono text-sm"
-                  data-testid="input-sales-tax"
-                />
-                <p className="text-[10px] text-muted-foreground font-mono">Accounting skill reduces this</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="brokerFee" className="font-mono text-xs">Broker Fee %</Label>
-                <Input
-                  id="brokerFee"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  max="10"
-                  value={brokerFee}
-                  onChange={(e) => setBrokerFee(parseFloat(e.target.value) || 0)}
-                  className="font-mono text-sm"
-                  data-testid="input-broker-fee"
-                />
-                <p className="text-[10px] text-muted-foreground font-mono">Broker Relations + standings</p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="runs" className="font-mono text-xs">Runs</Label>
+              <Input
+                id="runs"
+                type="number"
+                step="1"
+                min="1"
+                max="500"
+                value={runs}
+                onChange={(e) => setRuns(Math.max(1, parseInt(e.target.value) || 1))}
+                className="font-mono text-sm"
+                data-testid="input-runs"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="jobCost" className="font-mono text-xs">Job Cost (ISK per run)</Label>
+              <Input
+                id="jobCost"
+                type="number"
+                step="1000"
+                min="0"
+                value={jobCost}
+                onChange={(e) => setJobCost(parseFloat(e.target.value) || 0)}
+                className="font-mono text-sm"
+                data-testid="input-job-cost"
+              />
+              <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
+                <Zap className="w-3 h-3" />
+                Total: {formatISK(jobCost * runs)}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-mono text-xs tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+              <Settings2 className="w-3.5 h-3.5" />
+              Tax &amp; Fees
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="salesTax" className="font-mono text-xs">Sales Tax %</Label>
+              <Input
+                id="salesTax"
+                type="number"
+                step="0.1"
+                min="0"
+                max="15"
+                value={salesTax}
+                onChange={(e) => setSalesTax(parseFloat(e.target.value) || 0)}
+                className="font-mono text-sm"
+                data-testid="input-sales-tax"
+              />
+              <p className="text-[10px] text-muted-foreground font-mono">Accounting skill reduces this</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="brokerFee" className="font-mono text-xs">Broker Fee %</Label>
+              <Input
+                id="brokerFee"
+                type="number"
+                step="0.1"
+                min="0"
+                max="10"
+                value={brokerFee}
+                onChange={(e) => setBrokerFee(parseFloat(e.target.value) || 0)}
+                className="font-mono text-sm"
+                data-testid="input-broker-fee"
+              />
+              <p className="text-[10px] text-muted-foreground font-mono">Broker Relations + standings</p>
             </div>
           </CardContent>
         </Card>
@@ -330,21 +386,25 @@ export default function ReactionsPage() {
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground font-mono">Inputs (buy price)</span>
+                    <span className="text-muted-foreground font-mono">Inputs (buy)</span>
                     <span className="font-mono text-destructive">{formatISK(inputsTotal.buy)}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground font-mono">Inputs (sell price)</span>
+                    <span className="text-muted-foreground font-mono">Inputs (sell)</span>
                     <span className="font-mono text-destructive">{formatISK(inputsTotal.sell)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground font-mono">Job cost</span>
+                    <span className="font-mono text-destructive">{formatISK(jobCost * runs)}</span>
                   </div>
                 </div>
                 <div className="border-t border-border pt-1.5 space-y-1.5">
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground font-mono">Outputs (buy price)</span>
+                    <span className="text-muted-foreground font-mono">Output (buy)</span>
                     <span className="font-mono text-chart-2">{formatISK(outputsTotal.buy)}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground font-mono">Outputs (sell price)</span>
+                    <span className="text-muted-foreground font-mono">Output (sell)</span>
                     <span className="font-mono text-chart-2">{formatISK(outputsTotal.sell)}</span>
                   </div>
                 </div>
@@ -385,25 +445,23 @@ export default function ReactionsPage() {
           ))}
         </div>
       ) : margins.length > 0 && (
-        <>
-          <div>
-            <h2 className="font-['Oxanium'] text-lg font-semibold tracking-wide mb-3 flex items-center gap-2">
-              Margin Scenarios
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="margins-grid">
-              {margins.map((m) => (
-                <MarginCard key={m.label} result={m} />
-              ))}
-            </div>
+        <div>
+          <h2 className="font-['Oxanium'] text-lg font-semibold tracking-wide mb-3">
+            Margin Scenarios
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="margins-grid">
+            {margins.map((m) => (
+              <MarginCard key={m.label} result={m} />
+            ))}
           </div>
-        </>
+        </div>
       )}
 
       {isLoading ? (
         <Card>
           <CardContent className="p-4">
             <div className="space-y-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+              {[1, 2, 3, 4, 5].map((i) => (
                 <Skeleton key={i} className="h-8 w-full" />
               ))}
             </div>
@@ -413,7 +471,7 @@ export default function ReactionsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="font-['Oxanium'] text-lg tracking-wide">
-              Bill of Materials
+              Bill of Materials ({runs} run{runs > 1 ? "s" : ""})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -450,7 +508,7 @@ export default function ReactionsPage() {
                   </tr>
                   <tr className="bg-muted/20">
                     <td className="py-2 px-3 font-mono text-xs font-semibold" colSpan={2}>
-                      OUTPUTS TOTAL
+                      OUTPUT TOTAL
                     </td>
                     <td className="py-2 px-3" colSpan={2}></td>
                     <td className="py-2 px-3 text-right font-mono text-xs font-semibold text-chart-2">

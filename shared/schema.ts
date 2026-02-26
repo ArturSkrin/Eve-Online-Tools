@@ -184,18 +184,21 @@ export interface ReactionItemPrice extends ReactionItem {
 
 export interface ReactionPricesResponse {
   items: ReactionItemPrice[];
+  runs: number;
+  outputPerRun: number;
   updatedAt: string;
 }
 
-export const NEURALINK_ENHANCER_ITEMS: ReactionItem[] = [
-  { typeId: 28694, name: "Amber Mykoserocin", quantity: 880, role: "input", group: "Gas" },
-  { typeId: 28686, name: "Pure Synth Blue Pill Booster", quantity: 1920, role: "input", group: "Boosters" },
-  { typeId: 28697, name: "Golden Mykoserocin", quantity: 909, role: "input", group: "Gas" },
-  { typeId: 28687, name: "Pure Synth Crash Booster", quantity: 2200, role: "input", group: "Boosters" },
-  { typeId: 57460, name: "Axosomatic Neurolink Enhancer", quantity: 440, role: "input", group: "Boosters" },
-  { typeId: 30375, name: "Fullerite-C28", quantity: 3000, role: "input", group: "Fullerites" },
-  { typeId: 30376, name: "Fullerite-C32", quantity: 3000, role: "input", group: "Fullerites" },
-  { typeId: 30309, name: "Graphene Nanoribbons", quantity: 3600, role: "input", group: "Materials" },
-  { typeId: 28670, name: "Synth Blue Pill Booster", quantity: 113, role: "output", group: "Output" },
-  { typeId: 28672, name: "Synth Crash Booster", quantity: 129, role: "output", group: "Output" },
-];
+export const NEURALINK_REACTION = {
+  name: "Axosomatic Neurolink Enhancer",
+  outputTypeId: 57460,
+  outputPerRun: 20,
+  reactionTime: 10800,
+  items: [
+    { typeId: 4051, name: "Nitrogen Fuel Block", quantity: 5, role: "input" as const, group: "Fuel" },
+    { typeId: 28694, name: "Amber Mykoserocin", quantity: 40, role: "input" as const, group: "Gas" },
+    { typeId: 28697, name: "Golden Mykoserocin", quantity: 40, role: "input" as const, group: "Gas" },
+    { typeId: 57446, name: "AG-Composite Molecular Condenser", quantity: 1, role: "input" as const, group: "Materials" },
+    { typeId: 57460, name: "Axosomatic Neurolink Enhancer", quantity: 20, role: "output" as const, group: "Output" },
+  ] as ReactionItem[],
+};

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getMarketPrices, getPublicContracts, getContractItems, getTypeNames, searchTypes, getRegionOrders } from "./esi";
-import { EVE_REGIONS, NEURALINK_ENHANCER_ITEMS, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice } from "@shared/schema";
+import { EVE_REGIONS, NEURALINK_REACTION, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice } from "@shared/schema";
 import { log } from "./index";
 
 let scanProgress: ScanProgress = {
@@ -144,19 +144,22 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/reactions/neuralink/prices", async (_req, res) => {
+  app.get("/api/reactions/neuralink/prices", async (req, res) => {
     try {
+      const runs = parseInt(req.query.runs as string) || 1;
       const JITA_REGION = 10000002;
-      log("Fetching reaction prices from Jita...", "esi");
+      log(`Fetching reaction prices from Jita (${runs} runs)...`, "esi");
 
-      const pricePromises = NEURALINK_ENHANCER_ITEMS.map(async (item) => {
+      const pricePromises = NEURALINK_REACTION.items.map(async (item) => {
         const orders = await getRegionOrders(JITA_REGION, item.typeId);
+        const qty = item.quantity * runs;
         return {
           ...item,
+          quantity: qty,
           buyPrice: orders.buyMax,
           sellPrice: orders.sellMin,
-          totalBuy: orders.buyMax * item.quantity,
-          totalSell: orders.sellMin * item.quantity,
+          totalBuy: orders.buyMax * qty,
+          totalSell: orders.sellMin * qty,
         } as ReactionItemPrice;
       });
 
@@ -165,6 +168,8 @@ export async function registerRoutes(
 
       res.json({
         items,
+        runs,
+        outputPerRun: NEURALINK_REACTION.outputPerRun,
         updatedAt: new Date().toISOString(),
       });
     } catch (err: any) {

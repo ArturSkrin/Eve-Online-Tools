@@ -11,7 +11,11 @@ A web application for EVE Online market intelligence. Two main sections: Contrac
 - **Scan History**: Track previous scan results
 
 ### Reactions Section (`/reactions`)
-- **Neuralink Enhancer**: Reaction profitability calculator (in development)
+- **Axosomatic Neurolink Enhancer**: Full reaction profitability calculator with live Jita prices
+  - Recipe: Nitrogen Fuel Block ×5, Amber Mykoserocin ×40, Golden Mykoserocin ×40, AG-Composite Molecular Condenser ×1 → Axosomatic Neurolink Enhancer ×20
+  - Recipe source: Fuzzwork SDE API (blueprint 57497)
+  - 4 margin scenarios (buy→sell, buy→buy, sell→sell, sell→buy)
+  - Configurable: runs, job cost per run, sales tax %, broker fee %
 
 ## Architecture
 - **Frontend**: React + Vite + TailwindCSS, dark sci-fi EVE Online theme (teal/cyan primary)
