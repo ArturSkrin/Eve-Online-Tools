@@ -170,6 +170,8 @@ export async function getSystemCostIndices(systemId: number): Promise<IndustryCo
   return result;
 }
 
+const JITA_SYSTEM_ID = 30000142;
+
 export async function getRegionOrders(regionId: number, typeId: number): Promise<{ sellMin: number; buyMax: number }> {
   try {
     let sellMin = Infinity;
@@ -181,7 +183,7 @@ export async function getRegionOrders(regionId: number, typeId: number): Promise
     });
 
     for (const order of sellOrders) {
-      if (order.price < sellMin) sellMin = order.price;
+      if (order.system_id === JITA_SYSTEM_ID && order.price < sellMin) sellMin = order.price;
     }
 
     const { data: buyOrders } = await esiFetch<any[]>(`/markets/${regionId}/orders/`, {
@@ -190,7 +192,7 @@ export async function getRegionOrders(regionId: number, typeId: number): Promise
     });
 
     for (const order of buyOrders) {
-      if (order.price > buyMax) buyMax = order.price;
+      if (order.system_id === JITA_SYSTEM_ID && order.price > buyMax) buyMax = order.price;
     }
 
     return {
