@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Factory,
   RefreshCw,
   TrendingUp,
@@ -18,8 +25,11 @@ import {
   Cpu,
   Save,
   Info,
+  Building2,
+  Zap,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { STATION_PRESETS_MANUFACTURING } from "@shared/schema";
 import type { ImplantPricesResponse, ImplantItemPrice } from "@shared/schema";
 
 const SETTINGS_KEY = "eve-implant-settings";
@@ -196,12 +206,24 @@ export default function ImplantsPage() {
   const saved = useMemo(() => loadSettings(), []);
 
   const [runs, setRuns] = useState(1);
+  const [stationId, setStationId] = useState<string>(saved?.stationId ?? "default");
   const [me, setMe] = useState<number>(saved?.me ?? 0);
-  const [facilityBonus, setFacilityBonus] = useState<number>(saved?.facilityBonus ?? 2);
+  const [facilityBonus, setFacilityBonus] = useState<number>(saved?.facilityBonus ?? 0);
   const [salesTax, setSalesTax] = useState<number>(saved?.salesTax ?? 3.6);
   const [brokerFee, setBrokerFee] = useState<number>(saved?.brokerFee ?? 1.5);
   const [useJobOverride, setUseJobOverride] = useState<boolean>(saved?.useJobOverride ?? false);
   const [jobCostOverride, setJobCostOverride] = useState<number>(saved?.jobCostOverride ?? 0);
+
+  const station = useMemo(() => STATION_PRESETS_MANUFACTURING.find((p) => p.id === stationId) ?? STATION_PRESETS_MANUFACTURING[0], [stationId]);
+
+  function handleStationChange(newId: string) {
+    setStationId(newId);
+    const preset = STATION_PRESETS_MANUFACTURING.find((p) => p.id === newId);
+    if (preset) {
+      setFacilityBonus(preset.facilityMeBonus);
+      if (preset.autoJobCost) setUseJobOverride(false);
+    }
+  }
 
   const { data, isLoading, error, refetch, isFetching } = useQuery<ImplantPricesResponse>({
     queryKey: ["/api/implants/rapture-alpha/prices", runs, me, facilityBonus],
@@ -257,7 +279,7 @@ export default function ImplantsPage() {
   const effectiveJobCost = useJobOverride ? jobCostOverride * runs : (data?.estimatedJobCost ?? 0);
 
   function handleSaveSettings() {
-    const settings = { me, facilityBonus, salesTax, brokerFee, useJobOverride, jobCostOverride };
+    const settings = { stationId, me, facilityBonus, salesTax, brokerFee, useJobOverride, jobCostOverride };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
   }
@@ -299,6 +321,29 @@ export default function ImplantsPage() {
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-3">
             <div className="space-y-1">
+              <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                <Building2 className="w-3 h-3" /> Сооружение
+              </Label>
+              <Select value={stationId} onValueChange={handleStationChange} data-testid="select-station">
+                <SelectTrigger className="font-mono text-xs h-9" data-testid="trigger-station">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATION_PRESETS_MANUFACTURING.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="font-mono text-xs">{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {station.id !== "default" && (
+                <div className="flex items-center gap-1.5 p-2 rounded bg-primary/5 border border-primary/20">
+                  <Zap className="w-3 h-3 text-primary shrink-0" />
+                  <span className="font-mono text-[10px] text-primary">
+                    ME -{station.facilityMeBonus}% · SCI ~2.7% авто
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1">
               <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Прогоны</Label>
               <Input
                 type="number" min={1} max={1000} value={runs}
@@ -330,7 +375,9 @@ export default function ImplantsPage() {
                 />
                 <span className="font-mono text-xs text-muted-foreground">%</span>
               </div>
-              <p className="text-[9px] font-mono text-muted-foreground">Azbel basic rig = 2%, advanced = 4%</p>
+              <p className="text-[9px] font-mono text-muted-foreground">
+                {station.id === "ikoskio-azbel" ? "Azbel basic rig: -2% (авто)" : "Azbel basic rig = 2%, advanced = 4%"}
+              </p>
             </div>
           </CardContent>
         </Card>

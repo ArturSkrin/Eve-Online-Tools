@@ -150,14 +150,19 @@ export async function registerRoutes(
       const JITA_REGION = 10000002;
       log(`Fetching reaction prices from Jita (${runs} runs)...`, "esi");
 
+      await ensurePrices();
+
       const pricePromises = NEURALINK_REACTION.items.map(async (item) => {
         const orders = await getRegionOrders(JITA_REGION, item.typeId);
         const qty = item.quantity * runs;
+        const adjEntry = priceMap.get(item.typeId);
+        const adjustedPrice = adjEntry?.adjusted || 0;
         return {
           ...item,
           quantity: qty,
           buyPrice: orders.buyMax,
           sellPrice: orders.sellMin,
+          adjustedPrice,
           totalBuy: orders.buyMax * qty,
           totalSell: orders.sellMin * qty,
         } as ReactionItemPrice;
@@ -166,10 +171,17 @@ export async function registerRoutes(
       const items = await Promise.all(pricePromises);
       log(`Fetched prices for ${items.length} reaction items`, "esi");
 
+      const sci = await getIkoskioSci();
+      const inputAdjustedValue = items
+        .filter((i) => i.role === "input")
+        .reduce((s, i) => s + i.adjustedPrice * i.quantity, 0);
+      const estimatedJobCost = inputAdjustedValue * sci.reaction;
+
       res.json({
         items,
         runs,
         outputPerRun: NEURALINK_REACTION.outputPerRun,
+        estimatedJobCost,
         updatedAt: new Date().toISOString(),
       });
     } catch (err: any) {

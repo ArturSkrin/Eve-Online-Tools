@@ -178,6 +178,7 @@ export interface ReactionItem {
 export interface ReactionItemPrice extends ReactionItem {
   buyPrice: number;
   sellPrice: number;
+  adjustedPrice: number;
   totalBuy: number;
   totalSell: number;
 }
@@ -186,8 +187,27 @@ export interface ReactionPricesResponse {
   items: ReactionItemPrice[];
   runs: number;
   outputPerRun: number;
+  estimatedJobCost: number;
   updatedAt: string;
 }
+
+export interface StationPreset {
+  id: string;
+  label: string;
+  system: string | null;
+  facilityMeBonus: number;
+  autoJobCost: boolean;
+}
+
+export const STATION_PRESETS_MANUFACTURING: StationPreset[] = [
+  { id: "default",       label: "Default (NPC станция, 0% ME)",            system: null,      facilityMeBonus: 0, autoJobCost: false },
+  { id: "ikoskio-azbel", label: "Ikoskio / Azbel — Svarog Manufacture",     system: "ikoskio", facilityMeBonus: 2, autoJobCost: true  },
+];
+
+export const STATION_PRESETS_REACTION: StationPreset[] = [
+  { id: "default",        label: "Default (NPC станция)",                   system: null,      facilityMeBonus: 0, autoJobCost: false },
+  { id: "ikoskio-tatara", label: "Ikoskio / Tatara — Svarog Manufacture",   system: "ikoskio", facilityMeBonus: 0, autoJobCost: true  },
+];
 
 export interface ImplantBlueprintItem {
   typeId: number;

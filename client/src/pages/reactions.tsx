@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   FlaskConical,
   RefreshCw,
   TrendingUp,
@@ -20,9 +27,11 @@ import {
   Settings2,
   Zap,
   Save,
+  Building2,
 } from "lucide-react";
 import { formatISK, formatNumber } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
+import { STATION_PRESETS_REACTION } from "@shared/schema";
 import type { ReactionPricesResponse, ReactionItemPrice } from "@shared/schema";
 
 const REACTION_SETTINGS_KEY = "eve-reaction-settings";
@@ -219,9 +228,12 @@ export default function ReactionsPage() {
   const [brokerFee, setBrokerFee] = useState<number>(savedSettings?.brokerFee ?? 1.5);
   const [jobCost, setJobCost] = useState<number>(savedSettings?.jobCost ?? 138360);
   const [runs, setRuns] = useState(1);
+  const [stationId, setStationId] = useState<string>(savedSettings?.stationId ?? "default");
+
+  const station = useMemo(() => STATION_PRESETS_REACTION.find((p) => p.id === stationId) ?? STATION_PRESETS_REACTION[0], [stationId]);
 
   function handleSaveSettings() {
-    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost }));
+    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost, stationId }));
     toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
   }
 
@@ -235,10 +247,17 @@ export default function ReactionsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const effectiveJobCostPerRun = useMemo(() => {
+    if (station.autoJobCost && data?.estimatedJobCost != null) {
+      return runs > 0 ? data.estimatedJobCost / runs : data.estimatedJobCost;
+    }
+    return jobCost;
+  }, [station, data?.estimatedJobCost, jobCost, runs]);
+
   const margins = useMemo(() => {
     if (!data?.items) return [];
-    return calculateMargins(data.items, salesTax, brokerFee, jobCost, runs);
-  }, [data, salesTax, brokerFee, jobCost, runs]);
+    return calculateMargins(data.items, salesTax, brokerFee, effectiveJobCostPerRun, runs);
+  }, [data, salesTax, brokerFee, effectiveJobCostPerRun, runs]);
 
   const groupedItems = useMemo(() => {
     if (!data?.items) return [];
@@ -313,6 +332,29 @@ export default function ReactionsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label className="font-mono text-xs flex items-center gap-1.5">
+                <Building2 className="w-3 h-3" /> Сооружение
+              </Label>
+              <Select value={stationId} onValueChange={setStationId} data-testid="select-station">
+                <SelectTrigger className="font-mono text-xs h-9" data-testid="trigger-station">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATION_PRESETS_REACTION.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="font-mono text-xs">{p.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {station.id !== "default" && (
+                <div className="flex items-center gap-1.5 p-2 rounded bg-primary/5 border border-primary/20">
+                  <Zap className="w-3 h-3 text-primary shrink-0" />
+                  <span className="font-mono text-[10px] text-primary">
+                    SCI реакции ~7.59% · Job cost авто
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="runs" className="font-mono text-xs">Runs</Label>
               <Input
                 id="runs"
@@ -327,20 +369,31 @@ export default function ReactionsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="jobCost" className="font-mono text-xs">Job Cost (ISK per run)</Label>
-              <Input
-                id="jobCost"
-                type="number"
-                step="1000"
-                min="0"
-                value={jobCost}
-                onChange={(e) => setJobCost(parseFloat(e.target.value) || 0)}
-                className="font-mono text-sm"
-                data-testid="input-job-cost"
-              />
+              <Label htmlFor="jobCost" className="font-mono text-xs">
+                Job Cost (ISK per run){station.autoJobCost ? " — авто" : ""}
+              </Label>
+              {station.autoJobCost ? (
+                <div className="rounded border border-border bg-muted/20 px-3 py-2">
+                  {isLoading
+                    ? <Skeleton className="h-4 w-32" />
+                    : <p className="font-mono text-sm text-primary">{formatISK(effectiveJobCostPerRun)} / run</p>}
+                  <p className="text-[9px] text-muted-foreground font-mono mt-0.5">= EIV × 7.59% SCI (Ikoskio)</p>
+                </div>
+              ) : (
+                <Input
+                  id="jobCost"
+                  type="number"
+                  step="1000"
+                  min="0"
+                  value={jobCost}
+                  onChange={(e) => setJobCost(parseFloat(e.target.value) || 0)}
+                  className="font-mono text-sm"
+                  data-testid="input-job-cost"
+                />
+              )}
               <p className="text-[10px] text-muted-foreground font-mono flex items-center gap-1">
                 <Zap className="w-3 h-3" />
-                Total: {formatISK(jobCost * runs)}
+                Total: {formatISK(effectiveJobCostPerRun * runs)}
               </p>
             </div>
           </CardContent>
@@ -421,8 +474,8 @@ export default function ReactionsPage() {
                     <span className="font-mono text-destructive">{formatISK(inputsTotal.sell)}</span>
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground font-mono">Job cost</span>
-                    <span className="font-mono text-destructive">{formatISK(jobCost * runs)}</span>
+                    <span className="text-muted-foreground font-mono">Job cost{station.autoJobCost ? " (авто)" : ""}</span>
+                    <span className="font-mono text-destructive">{formatISK(effectiveJobCostPerRun * runs)}</span>
                   </div>
                 </div>
                 <div className="border-t border-border pt-1.5 space-y-1.5">
