@@ -211,6 +211,8 @@ export default function ImplantsPage() {
   const [me, setMe] = useState<number>(saved?.me ?? 0);
   const [facilityBonus, setFacilityBonus] = useState<number>(saved?.facilityBonus ?? 0);
   const [facilityTeBonus, setFacilityTeBonus] = useState<number>(saved?.facilityTeBonus ?? 0);
+  const [factoryTax, setFactoryTax] = useState<number>(saved?.factoryTax ?? 0);
+  const [structureFee, setStructureFee] = useState<number>(saved?.structureFee ?? 0);
   const [salesTax, setSalesTax] = useState<number>(saved?.salesTax ?? 3.6);
   const [brokerFee, setBrokerFee] = useState<number>(saved?.brokerFee ?? 1.5);
   const [useJobOverride, setUseJobOverride] = useState<boolean>(saved?.useJobOverride ?? false);
@@ -238,6 +240,8 @@ export default function ImplantsPage() {
     if (preset) {
       setFacilityBonus(preset.facilityMeBonus);
       setFacilityTeBonus(preset.facilityTeBonus);
+      setFactoryTax(preset.factoryTax);
+      setStructureFee(preset.structureFee);
       if (preset.autoJobCost) setUseJobOverride(false);
     }
   }
@@ -293,10 +297,20 @@ export default function ImplantsPage() {
     };
   }, [data?.items]);
 
-  const effectiveJobCost = useJobOverride ? jobCostOverride * runs : (data?.estimatedJobCost ?? 0);
+  const inputAdjustedTotal = useMemo(() => {
+    if (!data?.items) return 0;
+    return data.items.filter((i) => i.role === "input").reduce((s, i) => s + i.adjustedPrice * i.quantity, 0);
+  }, [data?.items]);
+
+  const effectiveJobCost = useMemo(() => {
+    if (useJobOverride) return jobCostOverride * runs;
+    const sciCost = data?.estimatedJobCost ?? 0;
+    const extraTaxes = inputAdjustedTotal * (factoryTax + structureFee) / 100;
+    return sciCost + extraTaxes;
+  }, [useJobOverride, jobCostOverride, runs, data?.estimatedJobCost, inputAdjustedTotal, factoryTax, structureFee]);
 
   function handleSaveSettings() {
-    const settings = { stationId, me, facilityBonus, facilityTeBonus, salesTax, brokerFee, useJobOverride, jobCostOverride };
+    const settings = { stationId, me, facilityBonus, facilityTeBonus, factoryTax, structureFee, salesTax, brokerFee, useJobOverride, jobCostOverride };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
   }
@@ -385,6 +399,32 @@ export default function ImplantsPage() {
                       </div>
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Заводской налог %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={20} step={0.1} value={factoryTax}
+                          onChange={(e) => setFactoryTax(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-factory-tax"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Пошлина КлБТ %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={20} step={0.1} value={structureFee}
+                          onChange={(e) => setStructureFee(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-structure-fee"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-1.5 p-1.5 rounded bg-muted/30">
                     <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
                     <span className="font-mono text-[10px] text-muted-foreground">
@@ -397,6 +437,30 @@ export default function ImplantsPage() {
                       </span>
                     </span>
                   </div>
+                  {(factoryTax > 0 || structureFee > 0) && inputAdjustedTotal > 0 && !useJobOverride && (
+                    <div className="space-y-0.5 p-2 rounded bg-muted/20 border border-border/40">
+                      <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
+                        <span>SCI</span>
+                        <span>{(data?.estimatedJobCost ?? 0).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                      </div>
+                      {factoryTax > 0 && (
+                        <div className="flex justify-between font-mono text-[10px] text-destructive">
+                          <span>Заводской налог ({factoryTax}%)</span>
+                          <span>+{(inputAdjustedTotal * factoryTax / 100).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                        </div>
+                      )}
+                      {structureFee > 0 && (
+                        <div className="flex justify-between font-mono text-[10px] text-destructive">
+                          <span>Пошлина КлБТ ({structureFee}%)</span>
+                          <span>+{(inputAdjustedTotal * structureFee / 100).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-mono text-[10px] text-foreground border-t border-border/40 pt-0.5 mt-0.5">
+                        <span>Итого job cost</span>
+                        <span className="text-primary">{effectiveJobCost.toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

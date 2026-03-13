@@ -198,17 +198,19 @@ export interface StationPreset {
   system: string | null;
   facilityMeBonus: number;
   facilityTeBonus: number;
+  factoryTax: number;
+  structureFee: number;
   autoJobCost: boolean;
 }
 
 export const STATION_PRESETS_MANUFACTURING: StationPreset[] = [
-  { id: "default",       label: "Default (NPC станция)",               system: null,      facilityMeBonus: 0, facilityTeBonus: 0, autoJobCost: false },
-  { id: "ikoskio-azbel", label: "Ikoskio / Azbel — Svarog Manufacture", system: "ikoskio", facilityMeBonus: 0, facilityTeBonus: 0, autoJobCost: true  },
+  { id: "default",       label: "Default (NPC станция)",               system: null,      facilityMeBonus: 0, facilityTeBonus: 0,  factoryTax: 0,   structureFee: 0,   autoJobCost: false },
+  { id: "ikoskio-azbel", label: "Ikoskio / Azbel — Svarog Manufacture", system: "ikoskio", facilityMeBonus: 0, facilityTeBonus: 0,  factoryTax: 0,   structureFee: 0,   autoJobCost: true  },
 ];
 
 export const STATION_PRESETS_REACTION: StationPreset[] = [
-  { id: "default",        label: "Default (NPC станция)",                 system: null,      facilityMeBonus: 0, facilityTeBonus: 0, autoJobCost: false },
-  { id: "ikoskio-tatara", label: "Ikoskio / Tatara — Svarog Manufacture", system: "ikoskio", facilityMeBonus: 0, facilityTeBonus: 0, autoJobCost: true  },
+  { id: "default",        label: "Default (NPC станция)",                 system: null,      facilityMeBonus: 0,   facilityTeBonus: 0,    factoryTax: 0,   structureFee: 0,   autoJobCost: false },
+  { id: "ikoskio-tatara", label: "Ikoskio / Tatara — Svarog Manufacture", system: "ikoskio", facilityMeBonus: 2.4, facilityTeBonus: 24.0, factoryTax: 1.5, structureFee: 4.0, autoJobCost: true  },
 ];
 
 export interface ImplantBlueprintItem {

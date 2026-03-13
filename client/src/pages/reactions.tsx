@@ -231,6 +231,8 @@ export default function ReactionsPage() {
   const [stationId, setStationId] = useState<string>(savedSettings?.stationId ?? "default");
   const [facilityMeBonus, setFacilityMeBonus] = useState<number>(savedSettings?.facilityMeBonus ?? 0);
   const [facilityTeBonus, setFacilityTeBonus] = useState<number>(savedSettings?.facilityTeBonus ?? 0);
+  const [factoryTax, setFactoryTax] = useState<number>(savedSettings?.factoryTax ?? 0);
+  const [structureFee, setStructureFee] = useState<number>(savedSettings?.structureFee ?? 0);
 
   const station = useMemo(() => STATION_PRESETS_REACTION.find((p) => p.id === stationId) ?? STATION_PRESETS_REACTION[0], [stationId]);
 
@@ -240,11 +242,13 @@ export default function ReactionsPage() {
     if (preset) {
       setFacilityMeBonus(preset.facilityMeBonus);
       setFacilityTeBonus(preset.facilityTeBonus);
+      setFactoryTax(preset.factoryTax);
+      setStructureFee(preset.structureFee);
     }
   }
 
   function handleSaveSettings() {
-    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost, stationId, facilityMeBonus, facilityTeBonus }));
+    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost, stationId, facilityMeBonus, facilityTeBonus, factoryTax, structureFee }));
     toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
   }
 
@@ -258,12 +262,20 @@ export default function ReactionsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const inputAdjustedTotal = useMemo(() => {
+    if (!data?.items) return 0;
+    return data.items.filter((i) => i.role === "input").reduce((s, i) => s + i.adjustedPrice * i.quantity, 0);
+  }, [data?.items]);
+
   const effectiveJobCostPerRun = useMemo(() => {
     if (station.autoJobCost && data?.estimatedJobCost != null) {
-      return runs > 0 ? data.estimatedJobCost / runs : data.estimatedJobCost;
+      const sciCost = data.estimatedJobCost;
+      const extraTaxes = inputAdjustedTotal * (factoryTax + structureFee) / 100;
+      const totalCost = sciCost + extraTaxes;
+      return runs > 0 ? totalCost / runs : totalCost;
     }
     return jobCost;
-  }, [station, data?.estimatedJobCost, jobCost, runs]);
+  }, [station, data?.estimatedJobCost, inputAdjustedTotal, factoryTax, structureFee, jobCost, runs]);
 
   const margins = useMemo(() => {
     if (!data?.items) return [];
@@ -382,15 +394,63 @@ export default function ReactionsPage() {
                       <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">TE риг %</Label>
                       <div className="flex items-center gap-1">
                         <Input
-                          type="number" min={0} max={20} step={0.1} value={facilityTeBonus}
-                          onChange={(e) => setFacilityTeBonus(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          type="number" min={0} max={40} step={0.1} value={facilityTeBonus}
+                          onChange={(e) => setFacilityTeBonus(Math.min(40, Math.max(0, parseFloat(e.target.value) || 0)))}
                           className="font-mono text-xs h-7"
                           data-testid="input-facility-te"
                         />
                         <span className="font-mono text-[10px] text-muted-foreground">%</span>
                       </div>
                     </div>
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Заводской налог %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={20} step={0.1} value={factoryTax}
+                          onChange={(e) => setFactoryTax(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-factory-tax"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Пошлина КлБТ %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={20} step={0.1} value={structureFee}
+                          onChange={(e) => setStructureFee(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-structure-fee"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
                   </div>
+                  {(factoryTax > 0 || structureFee > 0) && inputAdjustedTotal > 0 && (
+                    <div className="space-y-0.5 p-2 rounded bg-muted/20 border border-border/40">
+                      <div className="flex justify-between font-mono text-[10px] text-muted-foreground">
+                        <span>SCI ({((data?.estimatedJobCost ?? 0) / Math.max(inputAdjustedTotal, 1) * 100).toFixed(2)}%)</span>
+                        <span>{((data?.estimatedJobCost ?? 0)).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                      </div>
+                      {factoryTax > 0 && (
+                        <div className="flex justify-between font-mono text-[10px] text-destructive">
+                          <span>Заводской налог ({factoryTax}%)</span>
+                          <span>+{(inputAdjustedTotal * factoryTax / 100).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                        </div>
+                      )}
+                      {structureFee > 0 && (
+                        <div className="flex justify-between font-mono text-[10px] text-destructive">
+                          <span>Пошлина КлБТ ({structureFee}%)</span>
+                          <span>+{(inputAdjustedTotal * structureFee / 100).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-mono text-[10px] text-foreground border-t border-border/40 pt-0.5 mt-0.5">
+                        <span>Итого job cost</span>
+                        <span className="text-primary">{(inputAdjustedTotal * (((data?.estimatedJobCost ?? 0) / Math.max(inputAdjustedTotal, 1)) + (factoryTax + structureFee) / 100)).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} ISK</span>
+                      </div>
+                    </div>
+                  )}
                   {facilityMeBonus > 0 && (
                     <p className="text-[9px] font-mono text-chart-2">
                       ME -{facilityMeBonus}%: входы уменьшены
