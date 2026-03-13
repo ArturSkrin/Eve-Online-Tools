@@ -1,4 +1,4 @@
-import { Search, Factory, History, BookmarkCheck, TrendingUp, Home, FlaskConical, Beaker } from "lucide-react";
+import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -42,6 +42,14 @@ const reactionItems = [
     title: "Neuralink Enhancer",
     url: "/reactions",
     icon: Beaker,
+  },
+];
+
+const implantItems = [
+  {
+    title: "Rapture Alpha",
+    url: "/implants",
+    icon: Cpu,
   },
 ];
 
@@ -106,6 +114,34 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {reactionItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      data-testid={`nav-${item.title.toLowerCase().replace(/\s/g, "-")}`}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="w-4 h-4" />
+                        <span className="font-mono text-xs">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+            <Cpu className="w-3 h-3" />
+            Implants
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {implantItems.map((item) => {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>

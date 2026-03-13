@@ -1,8 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { getMarketPrices, getPublicContracts, getContractItems, getTypeNames, searchTypes, getRegionOrders } from "./esi";
-import { EVE_REGIONS, NEURALINK_REACTION, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice } from "@shared/schema";
+import { getMarketPrices, getPublicContracts, getContractItems, getTypeNames, searchTypes, getRegionOrders, getSystemCostIndices } from "./esi";
+import { EVE_REGIONS, NEURALINK_REACTION, RAPTURE_ALPHA_BLUEPRINT, calcMeQty, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice, type ImplantItemPrice } from "@shared/schema";
 import { log } from "./index";
 
 let scanProgress: ScanProgress = {
@@ -174,6 +174,85 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       log(`Error fetching reaction prices: ${err.message}`, "esi");
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const IKOSKIO_SYSTEM_ID = 30045337;
+  let sciCache: { indices: { manufacturing: number; reaction: number; invention: number }; fetchedAt: number } | null = null;
+  const SCI_CACHE_MS = 60 * 60 * 1000;
+
+  async function getIkoskioSci() {
+    const now = Date.now();
+    if (sciCache && now - sciCache.fetchedAt < SCI_CACHE_MS) return sciCache.indices;
+    const indices = await getSystemCostIndices(IKOSKIO_SYSTEM_ID);
+    sciCache = { indices, fetchedAt: now };
+    return indices;
+  }
+
+  app.get("/api/industry/cost-index/ikoskio", async (_req, res) => {
+    try {
+      const indices = await getIkoskioSci();
+      res.json({ systemId: IKOSKIO_SYSTEM_ID, systemName: "Ikoskio", ...indices });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  app.get("/api/implants/rapture-alpha/prices", async (req, res) => {
+    try {
+      const runs = Math.max(1, parseInt(req.query.runs as string) || 1);
+      const me = Math.min(10, Math.max(0, parseInt(req.query.me as string) || 0));
+      const facilityBonus = Math.min(50, Math.max(0, parseFloat(req.query.facilityBonus as string) || 0));
+      const JITA_REGION = 10000002;
+
+      log(`Fetching implant prices from Jita (runs=${runs}, me=${me}, facilityBonus=${facilityBonus})...`, "esi");
+
+      await ensurePrices();
+
+      const pricePromises = RAPTURE_ALPHA_BLUEPRINT.items.map(async (item) => {
+        const orders = await getRegionOrders(JITA_REGION, item.typeId);
+        const adjEntry = priceMap.get(item.typeId);
+        const adjustedPrice = adjEntry?.adjusted || 0;
+
+        let qty: number;
+        if (item.role === "output") {
+          qty = item.baseQty * runs;
+        } else {
+          qty = calcMeQty(item.baseQty, runs, me, facilityBonus);
+        }
+
+        return {
+          ...item,
+          quantity: qty,
+          buyPrice: orders.buyMax,
+          sellPrice: orders.sellMin,
+          adjustedPrice,
+          totalBuy: orders.buyMax * qty,
+          totalSell: orders.sellMin * qty,
+        } as ImplantItemPrice;
+      });
+
+      const items = await Promise.all(pricePromises);
+
+      const sci = await getIkoskioSci();
+      const inputAdjustedValue = items
+        .filter((i) => i.role === "input")
+        .reduce((s, i) => s + i.adjustedPrice * i.quantity, 0);
+      const estimatedJobCost = inputAdjustedValue * sci.manufacturing;
+
+      log(`Fetched prices for ${items.length} implant items`, "esi");
+
+      res.json({
+        items,
+        runs,
+        me,
+        facilityBonus,
+        estimatedJobCost,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err: any) {
+      log(`Error fetching implant prices: ${err.message}`, "esi");
       res.status(500).json({ message: err.message });
     }
   });

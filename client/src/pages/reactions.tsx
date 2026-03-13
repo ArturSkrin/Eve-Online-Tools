@@ -19,9 +19,19 @@ import {
   AlertCircle,
   Settings2,
   Zap,
+  Save,
 } from "lucide-react";
 import { formatISK, formatNumber } from "@/lib/format";
+import { useToast } from "@/hooks/use-toast";
 import type { ReactionPricesResponse, ReactionItemPrice } from "@shared/schema";
+
+const REACTION_SETTINGS_KEY = "eve-reaction-settings";
+function loadReactionSettings() {
+  try {
+    const s = localStorage.getItem(REACTION_SETTINGS_KEY);
+    return s ? JSON.parse(s) : null;
+  } catch { return null; }
+}
 
 function formatISKFull(value: number): string {
   return new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
@@ -203,10 +213,17 @@ function MarginCard({ result }: { result: MarginResult }) {
 }
 
 export default function ReactionsPage() {
-  const [salesTax, setSalesTax] = useState(3.6);
-  const [brokerFee, setBrokerFee] = useState(1.5);
-  const [jobCost, setJobCost] = useState(138360);
+  const { toast } = useToast();
+  const savedSettings = useMemo(() => loadReactionSettings(), []);
+  const [salesTax, setSalesTax] = useState<number>(savedSettings?.salesTax ?? 3.6);
+  const [brokerFee, setBrokerFee] = useState<number>(savedSettings?.brokerFee ?? 1.5);
+  const [jobCost, setJobCost] = useState<number>(savedSettings?.jobCost ?? 138360);
   const [runs, setRuns] = useState(1);
+
+  function handleSaveSettings() {
+    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost }));
+    toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
+  }
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ReactionPricesResponse>({
     queryKey: ["/api/reactions/neuralink/prices", runs],
@@ -367,6 +384,16 @@ export default function ReactionsPage() {
               />
               <p className="text-[10px] text-muted-foreground font-mono">Broker Relations + standings</p>
             </div>
+            <Button
+              onClick={handleSaveSettings}
+              variant="outline"
+              size="sm"
+              className="w-full font-mono text-xs border-primary/40 text-primary hover:bg-primary/10"
+              data-testid="button-save-settings"
+            >
+              <Save className="w-3 h-3 mr-1.5" />
+              Сохранить настройки
+            </Button>
           </CardContent>
         </Card>
 

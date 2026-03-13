@@ -189,6 +189,52 @@ export interface ReactionPricesResponse {
   updatedAt: string;
 }
 
+export interface ImplantBlueprintItem {
+  typeId: number;
+  name: string;
+  baseQty: number;
+  role: "input" | "output";
+  group: string;
+}
+
+export interface ImplantItemPrice extends ImplantBlueprintItem {
+  quantity: number;
+  buyPrice: number;
+  sellPrice: number;
+  adjustedPrice: number;
+  totalBuy: number;
+  totalSell: number;
+}
+
+export interface ImplantPricesResponse {
+  items: ImplantItemPrice[];
+  runs: number;
+  me: number;
+  facilityBonus: number;
+  estimatedJobCost: number;
+  updatedAt: string;
+}
+
+export const RAPTURE_ALPHA_BLUEPRINT = {
+  name: "High-grade Rapture Alpha",
+  outputTypeId: 57123,
+  outputPerRun: 1,
+  productionTime: 9000,
+  items: [
+    { typeId: 2869,  name: "Nano-Factory",              baseQty: 1,   role: "input"  as const, group: "Components" },
+    { typeId: 11399, name: "Morphite",                  baseQty: 79,  role: "input"  as const, group: "Minerals" },
+    { typeId: 47975, name: "Crystalline Isogen-10",     baseQty: 360, role: "input"  as const, group: "Advanced" },
+    { typeId: 2346,  name: "Synthetic Synapses",        baseQty: 542, role: "input"  as const, group: "Components" },
+    { typeId: 2367,  name: "Cryoprotectant Solution",   baseQty: 594, role: "input"  as const, group: "Components" },
+    { typeId: 57123, name: "High-grade Rapture Alpha",  baseQty: 1,   role: "output" as const, group: "Output" },
+  ] as ImplantBlueprintItem[],
+};
+
+export function calcMeQty(baseQty: number, runs: number, me: number, facilityBonus: number): number {
+  const factor = (1 - me / 100) * (1 - facilityBonus / 100);
+  return Math.max(runs, Math.ceil(baseQty * runs * factor));
+}
+
 export const NEURALINK_REACTION = {
   name: "Axosomatic Neurolink Enhancer",
   outputTypeId: 57460,

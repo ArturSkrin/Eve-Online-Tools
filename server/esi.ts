@@ -151,6 +151,25 @@ export async function searchTypes(query: string): Promise<Array<{ typeId: number
   }
 }
 
+export interface IndustryCostIndices {
+  manufacturing: number;
+  reaction: number;
+  invention: number;
+}
+
+export async function getSystemCostIndices(systemId: number): Promise<IndustryCostIndices> {
+  const { data } = await esiFetch<Array<{ solar_system_id: number; cost_indices: Array<{ activity: string; cost_index: number }> }>>("/industry/systems/");
+  const system = data.find((s) => s.solar_system_id === systemId);
+  const result: IndustryCostIndices = { manufacturing: 0, reaction: 0, invention: 0 };
+  if (!system) return result;
+  for (const ci of system.cost_indices) {
+    if (ci.activity === "manufacturing") result.manufacturing = ci.cost_index;
+    else if (ci.activity === "reaction") result.reaction = ci.cost_index;
+    else if (ci.activity === "invention") result.invention = ci.cost_index;
+  }
+  return result;
+}
+
 export async function getRegionOrders(regionId: number, typeId: number): Promise<{ sellMin: number; buyMax: number }> {
   try {
     let sellMin = Infinity;

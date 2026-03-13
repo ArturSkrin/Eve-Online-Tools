@@ -16,6 +16,16 @@ A web application for EVE Online market intelligence. Two main sections: Contrac
   - Recipe source: Fuzzwork SDE API (blueprint 57497)
   - 4 margin scenarios (buy→sell, buy→buy, sell→sell, sell→buy)
   - Configurable: runs, job cost per run, sales tax %, broker fee %
+  - Save settings to localStorage (persists between sessions)
+
+### Implants Section (`/implants`)
+- **High-grade Rapture Alpha**: Manufacturing profitability calculator with live Jita prices
+  - Recipe: Nano-Factory×1, Morphite×79, Crystalline Isogen-10×360, Synthetic Synapses×542, Cryoprotectant Solution×594 → High-grade Rapture Alpha×1
+  - ME (Material Efficiency 0–10) input with EVE-correct formula: max(runs, ceil(baseQty × runs × (1-ME/100) × (1-facilityBonus/100)))
+  - Facility ME bonus % (Azbel basic rig = 2%)
+  - Live Ikoskio system Manufacturing SCI from ESI (cached 1h), displayed on page
+  - Auto-calculated job cost: sum(adjustedPrice × qty) × SCI, with manual override option
+  - 4 margin scenarios, save settings to localStorage
 
 ## Architecture
 - **Frontend**: React + Vite + TailwindCSS, dark sci-fi EVE Online theme (teal/cyan primary)
@@ -44,9 +54,11 @@ A web application for EVE Online market intelligence. Two main sections: Contrac
 - `/contracts/saved` - Saved Deals
 - `/contracts/history` - Scan History
 - `/reactions` - Reactions (Neuralink Enhancer)
+- `/implants` - Implants (High-grade Rapture Alpha)
 
 ## ESI API Endpoints Used
-- `GET /markets/prices/` - Global adjusted/average prices
+- `GET /markets/prices/` - Global adjusted/average prices (also used for adjustedPrice → job cost calc)
+- `GET /industry/systems/` - System cost indices (Ikoskio manufacturing & reaction SCI, cached 1h)
 - `GET /contracts/public/{region_id}/` - Public contracts by region
 - `GET /contracts/public/items/{contract_id}/` - Contract item details
 - `GET /universe/types/{type_id}/` - Item type names
