@@ -229,18 +229,29 @@ export default function ReactionsPage() {
   const [jobCost, setJobCost] = useState<number>(savedSettings?.jobCost ?? 138360);
   const [runs, setRuns] = useState(1);
   const [stationId, setStationId] = useState<string>(savedSettings?.stationId ?? "default");
+  const [facilityMeBonus, setFacilityMeBonus] = useState<number>(savedSettings?.facilityMeBonus ?? 0);
+  const [facilityTeBonus, setFacilityTeBonus] = useState<number>(savedSettings?.facilityTeBonus ?? 0);
 
   const station = useMemo(() => STATION_PRESETS_REACTION.find((p) => p.id === stationId) ?? STATION_PRESETS_REACTION[0], [stationId]);
 
+  function handleStationChange(newId: string) {
+    setStationId(newId);
+    const preset = STATION_PRESETS_REACTION.find((p) => p.id === newId);
+    if (preset) {
+      setFacilityMeBonus(preset.facilityMeBonus);
+      setFacilityTeBonus(preset.facilityTeBonus);
+    }
+  }
+
   function handleSaveSettings() {
-    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost, stationId }));
+    localStorage.setItem(REACTION_SETTINGS_KEY, JSON.stringify({ salesTax, brokerFee, jobCost, stationId, facilityMeBonus, facilityTeBonus }));
     toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
   }
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<ReactionPricesResponse>({
-    queryKey: ["/api/reactions/neuralink/prices", runs],
+    queryKey: ["/api/reactions/neuralink/prices", runs, facilityMeBonus],
     queryFn: async () => {
-      const res = await fetch(`/api/reactions/neuralink/prices?runs=${runs}`);
+      const res = await fetch(`/api/reactions/neuralink/prices?runs=${runs}&facilityMeBonus=${facilityMeBonus}`);
       if (!res.ok) throw new Error("Failed to fetch prices");
       return res.json();
     },
@@ -335,7 +346,7 @@ export default function ReactionsPage() {
               <Label className="font-mono text-xs flex items-center gap-1.5">
                 <Building2 className="w-3 h-3" /> Сооружение
               </Label>
-              <Select value={stationId} onValueChange={setStationId} data-testid="select-station">
+              <Select value={stationId} onValueChange={handleStationChange} data-testid="select-station">
                 <SelectTrigger className="font-mono text-xs h-9" data-testid="trigger-station">
                   <SelectValue />
                 </SelectTrigger>
@@ -345,12 +356,46 @@ export default function ReactionsPage() {
                   ))}
                 </SelectContent>
               </Select>
+
               {station.id !== "default" && (
-                <div className="flex items-center gap-1.5 p-2 rounded bg-primary/5 border border-primary/20">
-                  <Zap className="w-3 h-3 text-primary shrink-0" />
-                  <span className="font-mono text-[10px] text-primary">
-                    SCI реакции ~7.59% · Job cost авто
-                  </span>
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-1.5 p-2 rounded bg-primary/5 border border-primary/20">
+                    <Zap className="w-3 h-3 text-primary shrink-0" />
+                    <span className="font-mono text-[10px] text-primary">
+                      SCI реакции авто · Настройте ME% по рыгам вашей Татары
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">ME риг %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={10} step={0.1} value={facilityMeBonus}
+                          onChange={(e) => setFacilityMeBonus(Math.min(10, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-facility-me"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">TE риг %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={20} step={0.1} value={facilityTeBonus}
+                          onChange={(e) => setFacilityTeBonus(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-facility-te"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                  </div>
+                  {facilityMeBonus > 0 && (
+                    <p className="text-[9px] font-mono text-chart-2">
+                      ME -{facilityMeBonus}%: входы уменьшены
+                    </p>
+                  )}
                 </div>
               )}
             </div>

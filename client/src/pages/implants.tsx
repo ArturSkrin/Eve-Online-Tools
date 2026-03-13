@@ -27,9 +27,10 @@ import {
   Info,
   Building2,
   Zap,
+  Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { STATION_PRESETS_MANUFACTURING } from "@shared/schema";
+import { STATION_PRESETS_MANUFACTURING, RAPTURE_ALPHA_BLUEPRINT } from "@shared/schema";
 import type { ImplantPricesResponse, ImplantItemPrice } from "@shared/schema";
 
 const SETTINGS_KEY = "eve-implant-settings";
@@ -209,6 +210,7 @@ export default function ImplantsPage() {
   const [stationId, setStationId] = useState<string>(saved?.stationId ?? "default");
   const [me, setMe] = useState<number>(saved?.me ?? 0);
   const [facilityBonus, setFacilityBonus] = useState<number>(saved?.facilityBonus ?? 0);
+  const [facilityTeBonus, setFacilityTeBonus] = useState<number>(saved?.facilityTeBonus ?? 0);
   const [salesTax, setSalesTax] = useState<number>(saved?.salesTax ?? 3.6);
   const [brokerFee, setBrokerFee] = useState<number>(saved?.brokerFee ?? 1.5);
   const [useJobOverride, setUseJobOverride] = useState<boolean>(saved?.useJobOverride ?? false);
@@ -216,11 +218,26 @@ export default function ImplantsPage() {
 
   const station = useMemo(() => STATION_PRESETS_MANUFACTURING.find((p) => p.id === stationId) ?? STATION_PRESETS_MANUFACTURING[0], [stationId]);
 
+  const productionTimeSec = useMemo(() => {
+    const base = RAPTURE_ALPHA_BLUEPRINT.productionTime;
+    return Math.round(base * (1 - facilityTeBonus / 100));
+  }, [facilityTeBonus]);
+
+  function fmtTime(sec: number): string {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return `${h}ч ${m}м`;
+    if (m > 0) return `${m}м ${s}с`;
+    return `${s}с`;
+  }
+
   function handleStationChange(newId: string) {
     setStationId(newId);
     const preset = STATION_PRESETS_MANUFACTURING.find((p) => p.id === newId);
     if (preset) {
       setFacilityBonus(preset.facilityMeBonus);
+      setFacilityTeBonus(preset.facilityTeBonus);
       if (preset.autoJobCost) setUseJobOverride(false);
     }
   }
@@ -279,7 +296,7 @@ export default function ImplantsPage() {
   const effectiveJobCost = useJobOverride ? jobCostOverride * runs : (data?.estimatedJobCost ?? 0);
 
   function handleSaveSettings() {
-    const settings = { stationId, me, facilityBonus, salesTax, brokerFee, useJobOverride, jobCostOverride };
+    const settings = { stationId, me, facilityBonus, facilityTeBonus, salesTax, brokerFee, useJobOverride, jobCostOverride };
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     toast({ title: "Настройки сохранены", description: "Ваши параметры будут применяться при следующем входе." });
   }
@@ -335,11 +352,51 @@ export default function ImplantsPage() {
                 </SelectContent>
               </Select>
               {station.id !== "default" && (
-                <div className="flex items-center gap-1.5 p-2 rounded bg-primary/5 border border-primary/20">
-                  <Zap className="w-3 h-3 text-primary shrink-0" />
-                  <span className="font-mono text-[10px] text-primary">
-                    ME -{station.facilityMeBonus}% · SCI ~2.7% авто
-                  </span>
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center gap-1.5 p-2 rounded bg-primary/5 border border-primary/20">
+                    <Zap className="w-3 h-3 text-primary shrink-0" />
+                    <span className="font-mono text-[10px] text-primary">
+                      SCI авто · Настройте ME/TE по рыгам вашего Azbel
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">ME риг %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={10} step={0.1} value={facilityBonus}
+                          onChange={(e) => setFacilityBonus(Math.min(10, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-facility-bonus"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">TE риг %</Label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number" min={0} max={20} step={0.1} value={facilityTeBonus}
+                          onChange={(e) => setFacilityTeBonus(Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                          className="font-mono text-xs h-7"
+                          data-testid="input-facility-te"
+                        />
+                        <span className="font-mono text-[10px] text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 p-1.5 rounded bg-muted/30">
+                    <Clock className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <span className="font-mono text-[10px] text-muted-foreground">
+                      Время / прогон:{" "}
+                      <span className="text-foreground">
+                        {fmtTime(productionTimeSec)}
+                        {facilityTeBonus > 0 && (
+                          <span className="text-chart-2"> (−{facilityTeBonus}% TE)</span>
+                        )}
+                      </span>
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -364,21 +421,21 @@ export default function ImplantsPage() {
                 <Badge variant="outline" className="font-mono text-[10px] border-primary/40 text-primary whitespace-nowrap">ME {me}</Badge>
               </div>
             </div>
-            <div className="space-y-1">
-              <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Бонус сооружения ME%</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="number" min={0} max={10} step={0.1} value={facilityBonus}
-                  onChange={(e) => setFacilityBonus(Math.min(10, Math.max(0, parseFloat(e.target.value) || 0)))}
-                  className="font-mono text-sm h-8"
-                  data-testid="input-facility-bonus"
-                />
-                <span className="font-mono text-xs text-muted-foreground">%</span>
+            {station.id === "default" && (
+              <div className="space-y-1">
+                <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Бонус сооружения ME%</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number" min={0} max={10} step={0.1} value={facilityBonus}
+                    onChange={(e) => setFacilityBonus(Math.min(10, Math.max(0, parseFloat(e.target.value) || 0)))}
+                    className="font-mono text-sm h-8"
+                    data-testid="input-facility-bonus"
+                  />
+                  <span className="font-mono text-xs text-muted-foreground">%</span>
+                </div>
+                <p className="text-[9px] font-mono text-muted-foreground">Azbel basic rig = 2%, advanced = 4%</p>
               </div>
-              <p className="text-[9px] font-mono text-muted-foreground">
-                {station.id === "ikoskio-azbel" ? "Azbel basic rig: -2% (авто)" : "Azbel basic rig = 2%, advanced = 4%"}
-              </p>
-            </div>
+            )}
           </CardContent>
         </Card>
 

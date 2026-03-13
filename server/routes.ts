@@ -146,17 +146,22 @@ export async function registerRoutes(
 
   app.get("/api/reactions/neuralink/prices", async (req, res) => {
     try {
-      const runs = parseInt(req.query.runs as string) || 1;
+      const runs = Math.max(1, parseInt(req.query.runs as string) || 1);
+      const facilityMeBonus = Math.min(50, Math.max(0, parseFloat(req.query.facilityMeBonus as string) || 0));
       const JITA_REGION = 10000002;
-      log(`Fetching reaction prices from Jita (${runs} runs)...`, "esi");
+      log(`Fetching reaction prices from Jita (runs=${runs}, facilityMeBonus=${facilityMeBonus})...`, "esi");
 
       await ensurePrices();
 
       const pricePromises = NEURALINK_REACTION.items.map(async (item) => {
         const orders = await getRegionOrders(JITA_REGION, item.typeId);
-        const qty = item.quantity * runs;
         const adjEntry = priceMap.get(item.typeId);
         const adjustedPrice = adjEntry?.adjusted || 0;
+
+        const qty = item.role === "output"
+          ? item.quantity * runs
+          : calcMeQty(item.quantity, runs, 0, facilityMeBonus);
+
         return {
           ...item,
           quantity: qty,
@@ -181,6 +186,7 @@ export async function registerRoutes(
         items,
         runs,
         outputPerRun: NEURALINK_REACTION.outputPerRun,
+        facilityMeBonus,
         estimatedJobCost,
         updatedAt: new Date().toISOString(),
       });
