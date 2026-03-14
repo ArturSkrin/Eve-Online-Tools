@@ -1,0 +1,78 @@
+[1G[0K⠙[1G[0K
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[1G[0K⠙[1G[0K8:54:33 AM [express] serving on port 5000
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+8:54:51 AM [esi] Fetching reaction prices from Jita (runs=1, facilityMeBonus=0)...
+8:54:51 AM [esi] Fetching market prices from ESI...
+8:54:52 AM [esi] Cached 15624 market prices
+8:54:52 AM [esi] Fetched prices for 5 reaction items
+8:54:52 AM [express] GET /api/reactions/neuralink/prices 200 in 1706ms :: {"items":[{"typeId":4051,"name":"Nitrogen Fuel Block","quantity":5,"role":"input","group":"Fuel","buyPrice":16970,"sellPrice":17300,"adjustedPrice":7928.920569827151,"totalBuy":84850,"totalSell":86500},{"typeId":28694,"name":"Amber Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":67140,"sellPrice":75000,"adjustedPrice":4718.196758230416,"totalBuy":2685600,"totalSell":3000000},{"typeId":28697,"name":"Golden Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":74250,"sellPrice":79980,"adjustedPrice":4376.189036341751,"totalBuy":2970000,"totalSell":3199200},{"typeId":57446,"name":"AG-Composite Molecular Condenser","quantity":1,"role":"input","group":"Materials","buyPrice":752000,"sellPrice":820000,"adjustedPrice":648301.3807812997,"totalBuy":752000,"totalSell":820000},{"typeId":57460,"name":"Axosomatic Neurolink Enhancer","quantity":20,"role":"output","group":"Output","buyPrice":417000,"sellPrice":470000,"adjustedPrice":252999.93181675219,"totalBuy":8340000,"totalSell":9400000}],"runs":1,"outputPerRun":20,"facilityMeBonus":0,"estimatedJobCost":77617.04045750319,"updatedAt":"2026-03-14T08:54:52.949Z"}
+8:54:53 AM [esi] Fetching reaction prices from Jita (runs=1, facilityMeBonus=2.4)...
+8:54:54 AM [esi] Fetched prices for 5 reaction items
+8:54:54 AM [express] GET /api/reactions/neuralink/prices 200 in 254ms :: {"items":[{"typeId":4051,"name":"Nitrogen Fuel Block","quantity":5,"role":"input","group":"Fuel","buyPrice":16970,"sellPrice":17300,"adjustedPrice":7928.920569827151,"totalBuy":84850,"totalSell":86500},{"typeId":28694,"name":"Amber Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":67140,"sellPrice":75000,"adjustedPrice":4718.196758230416,"totalBuy":2685600,"totalSell":3000000},{"typeId":28697,"name":"Golden Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":74250,"sellPrice":79980,"adjustedPrice":4376.189036341751,"totalBuy":2970000,"totalSell":3199200},{"typeId":57446,"name":"AG-Composite Molecular Condenser","quantity":1,"role":"input","group":"Materials","buyPrice":752000,"sellPrice":820000,"adjustedPrice":648301.3807812997,"totalBuy":752000,"totalSell":820000},{"typeId":57460,"name":"Axosomatic Neurolink Enhancer","quantity":20,"role":"output","group":"Output","buyPrice":417000,"sellPrice":470000,"adjustedPrice":252999.93181675219,"totalBuy":8340000,"totalSell":9400000}],"runs":1,"outputPerRun":20,"facilityMeBonus":2.4,"estimatedJobCost":77617.04045750319,"updatedAt":"2026-03-14T08:54:54.219Z"}
+8:55:02 AM [esi] Fetching reaction prices from Jita (runs=1, facilityMeBonus=2.4)...
+8:55:03 AM [esi] Fetched prices for 5 reaction items
+8:55:03 AM [express] GET /api/reactions/neuralink/prices 200 in 571ms :: {"items":[{"typeId":4051,"name":"Nitrogen Fuel Block","quantity":5,"role":"input","group":"Fuel","buyPrice":16970,"sellPrice":17300,"adjustedPrice":7928.920569827151,"totalBuy":84850,"totalSell":86500},{"typeId":28694,"name":"Amber Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":67140,"sellPrice":75000,"adjustedPrice":4718.196758230416,"totalBuy":2685600,"totalSell":3000000},{"typeId":28697,"name":"Golden Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":74250,"sellPrice":79980,"adjustedPrice":4376.189036341751,"totalBuy":2970000,"totalSell":3199200},{"typeId":57446,"name":"AG-Composite Molecular Condenser","quantity":1,"role":"input","group":"Materials","buyPrice":752000,"sellPrice":820000,"adjustedPrice":648301.3807812997,"totalBuy":752000,"totalSell":820000},{"typeId":57460,"name":"Axosomatic Neurolink Enhancer","quantity":20,"role":"output","group":"Output","buyPrice":417000,"sellPrice":470000,"adjustedPrice":252999.93181675219,"totalBuy":8340000,"totalSell":9400000}],"runs":1,"outputPerRun":20,"facilityMeBonus":2.4,"estimatedJobCost":77617.04045750319,"updatedAt":"2026-03-14T08:55:03.033Z"}
+9:05:23 AM [esi] Fetching reaction prices from Jita (runs=1, facilityMeBonus=2.4)...
+9:05:24 AM [esi] Fetched prices for 5 reaction items
+9:05:24 AM [express] GET /api/reactions/neuralink/prices 200 in 486ms :: {"items":[{"typeId":4051,"name":"Nitrogen Fuel Block","quantity":5,"role":"input","group":"Fuel","buyPrice":16970,"sellPrice":17300,"adjustedPrice":7928.920569827151,"totalBuy":84850,"totalSell":86500},{"typeId":28694,"name":"Amber Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":67140,"sellPrice":75000,"adjustedPrice":4718.196758230416,"totalBuy":2685600,"totalSell":3000000},{"typeId":28697,"name":"Golden Mykoserocin","quantity":40,"role":"input","group":"Gas","buyPrice":74250,"sellPrice":79980,"adjustedPrice":4376.189036341751,"totalBuy":2970000,"totalSell":3199200},{"typeId":57446,"name":"AG-Composite Molecular Condenser","quantity":1,"role":"input","group":"Materials","buyPrice":752000,"sellPrice":820000,"adjustedPrice":648301.3807812997,"totalBuy":752000,"totalSell":820000},{"typeId":57460,"name":"Axosomatic Neurolink Enhancer","quantity":20,"role":"output","group":"Output","buyPrice":417000,"sellPrice":470000,"adjustedPrice":252999.93181675219,"totalBuy":8340000,"totalSell":9400000}],"runs":1,"outputPerRun":20,"facilityMeBonus":2.4,"estimatedJobCost":77617.04045750319,"updatedAt":"2026-03-14T09:05:24.242Z"}
+9:05:41 AM [esi] Fetching implant prices from Jita (runs=1, me=0, facilityBonus=0)...
+9:05:42 AM [express] GET /api/industry/cost-index/ikoskio 200 in 1ms :: {"systemId":30045337,"systemName":"Ikoskio","manufacturing":0.0273,"reaction":0.0738,"invention":0.0228}
+9:05:42 AM [esi] Fetched prices for 6 implant items
+9:05:42 AM [express] GET /api/implants/rapture-alpha/prices 200 in 745ms :: {"items":[{"typeId":2869,"name":"Nano-Factory","baseQty":1,"role":"input","group":"Components","quantity":1,"buyPrice":939100,"sellPrice":950000,"adjustedPrice":487835.6328609369,"totalBuy":939100,"totalSell":950000},{"typeId":11399,"name":"Morphite","baseQty":79,"role":"input","group":"Minerals","quantity":79,"buyPrice":19210,"sellPrice":20170,"adjustedPrice":19754.981992054978,"totalBuy":1517590,"totalSell":1593430},{"typeId":47975,"name":"Crystalline Isogen-10","baseQty":360,"role":"input","group":"Advanced","quantity":360,"buyPrice":56910,"sellPrice":61280,"adjustedPrice":0,"totalBuy":20487600,"totalSell":22060800},{"typeId":2346,"name":"Synthetic Synapses","baseQty":542,"role":"input","group":"Components","quantity":542,"buyPrice":82040,"sellPrice":88410,"adjustedPrice":58513.85784218085,"totalBuy":44465680,"totalSell":47918220},{"typeId":2367,"name":"Cryoprotectant Solution","baseQty":594,"role":"input","group":"Components","quantity":594,"buyPrice":118600,"sellPrice":123000,"adjustedPrice":35699.35711271172,"totalBuy":70448400,"totalSell":73062000},{"typeId":57123,"name":"High-grade Rapture Alpha","baseQty":1,"role":"output","group":"Output","quantity":1,"buyPrice":176500000,"sellPrice":216700000,"adjustedPrice":6428753.94107934,"totalBuy":176500000,"totalSell":216700000}],"runs":1,"me":0,"facilityBonus":0,"estimatedJobCost":1500637.5461981376,"updatedAt":"2026-03-14T09:05:42.369Z"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m9:15:35 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/scanner.tsx, /src/pages/reactions.tsx, /src/pages/implants.tsx[22m
+9:15:37 AM [esi] Fetching implant prices from Jita (runs=1, me=0, facilityBonus=0)...
+9:15:38 AM [esi] Fetched prices for 6 implant items
+9:15:38 AM [express] GET /api/implants/rapture-alpha/prices 200 in 733ms :: {"items":[{"typeId":2869,"name":"Nano-Factory","baseQty":1,"role":"input","group":"Components","quantity":1,"buyPrice":939100,"sellPrice":950000,"adjustedPrice":487835.6328609369,"totalBuy":939100,"totalSell":950000},{"typeId":11399,"name":"Morphite","baseQty":79,"role":"input","group":"Minerals","quantity":79,"buyPrice":19210,"sellPrice":20180,"adjustedPrice":19754.981992054978,"totalBuy":1517590,"totalSell":1594220},{"typeId":47975,"name":"Crystalline Isogen-10","baseQty":360,"role":"input","group":"Advanced","quantity":360,"buyPrice":56910,"sellPrice":61280,"adjustedPrice":0,"totalBuy":20487600,"totalSell":22060800},{"typeId":2346,"name":"Synthetic Synapses","baseQty":542,"role":"input","group":"Components","quantity":542,"buyPrice":82040,"sellPrice":88410,"adjustedPrice":58513.85784218085,"totalBuy":44465680,"totalSell":47918220},{"typeId":2367,"name":"Cryoprotectant Solution","baseQty":594,"role":"input","group":"Components","quantity":594,"buyPrice":118600,"sellPrice":125800,"adjustedPrice":35699.35711271172,"totalBuy":70448400,"totalSell":74725200},{"typeId":57123,"name":"High-grade Rapture Alpha","baseQty":1,"role":"output","group":"Output","quantity":1,"buyPrice":176500000,"sellPrice":216700000,"adjustedPrice":6428753.94107934,"totalBuy":176500000,"totalSell":216700000}],"runs":1,"me":0,"facilityBonus":0,"estimatedJobCost":1500637.5461981376,"updatedAt":"2026-03-14T09:15:38.142Z"}
