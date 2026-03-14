@@ -28,10 +28,14 @@ import {
   Building2,
   Zap,
   Clock,
+  Search,
+  FileText,
+  CheckCircle,
+  X,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { STATION_PRESETS_MANUFACTURING, RAPTURE_ALPHA_BLUEPRINT } from "@shared/schema";
-import type { ImplantPricesResponse, ImplantItemPrice } from "@shared/schema";
+import type { ImplantPricesResponse, ImplantItemPrice, ImplantContractsResponse } from "@shared/schema";
 
 const SETTINGS_KEY = "eve-implant-settings";
 
@@ -69,7 +73,8 @@ function calcMargins(
   jobCostOverride: number,
   useOverride: boolean,
   estimatedJobCost: number,
-  runs: number
+  runs: number,
+  contractExtraCost = 0,
 ): MarginResult[] {
   const inputs = items.filter((i) => i.role === "input");
   const outputs = items.filter((i) => i.role === "output");
@@ -79,7 +84,7 @@ function calcMargins(
   const outputBuyTotal = outputs.reduce((s, i) => s + i.totalBuy, 0);
   const outputSellTotal = outputs.reduce((s, i) => s + i.totalSell, 0);
 
-  const jc = useOverride ? jobCostOverride * runs : estimatedJobCost;
+  const jc = (useOverride ? jobCostOverride * runs : estimatedJobCost) + contractExtraCost;
 
   const taxRate = salesTax / 100;
   const brokerRate = brokerFee / 100;
@@ -276,10 +281,34 @@ export default function ImplantsPage() {
     return Object.entries(groups).map(([group, items]) => ({ group, items }));
   }, [data?.items]);
 
+  const [contractsEnabled, setContractsEnabled] = useState(false);
+  const [selectedContractId, setSelectedContractId] = useState<number | null>(null);
+
+  const { data: contractsData, isLoading: contractsLoading, error: contractsError } = useQuery<ImplantContractsResponse>({
+    queryKey: ["/api/implants/rapture-alpha/contracts"],
+    queryFn: async () => {
+      const r = await fetch("/api/implants/rapture-alpha/contracts");
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    enabled: contractsEnabled,
+    staleTime: 15 * 60 * 1000,
+  });
+
+  const selectedContract = useMemo(
+    () => contractsData?.contracts.find((c) => c.contractId === selectedContractId) ?? null,
+    [selectedContractId, contractsData]
+  );
+
+  const contractExtraCost = useMemo(
+    () => (selectedContract ? selectedContract.pricePerUnit * runs : 0),
+    [selectedContract, runs]
+  );
+
   const margins = useMemo(() => {
     if (!data?.items) return [];
-    return calcMargins(data.items, salesTax, brokerFee, jobCostOverride, useJobOverride, data.estimatedJobCost, runs);
-  }, [data, salesTax, brokerFee, jobCostOverride, useJobOverride, runs]);
+    return calcMargins(data.items, salesTax, brokerFee, jobCostOverride, useJobOverride, data.estimatedJobCost, runs, contractExtraCost);
+  }, [data, salesTax, brokerFee, jobCostOverride, useJobOverride, runs, contractExtraCost]);
 
   const inputsTotal = useMemo(() => {
     const inputs = data?.items?.filter((i) => i.role === "input") ?? [];
@@ -607,6 +636,123 @@ export default function ImplantsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card data-testid="card-contracts">
+        <CardHeader className="pb-2 pt-3 px-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              <CardTitle className="font-mono text-sm">Контракты на High-grade Rapture Alpha</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedContract && (
+                <Button
+                  variant="ghost" size="sm"
+                  className="h-7 px-2 font-mono text-[10px] text-muted-foreground hover:text-destructive"
+                  onClick={() => setSelectedContractId(null)}
+                  data-testid="button-clear-contract"
+                >
+                  <X className="w-3 h-3 mr-1" /> Убрать
+                </Button>
+              )}
+              <Button
+                variant="outline" size="sm"
+                className="h-7 px-3 font-mono text-xs border-primary/40 text-primary hover:bg-primary/10"
+                onClick={() => setContractsEnabled(true)}
+                disabled={contractsLoading}
+                data-testid="button-search-contracts"
+              >
+                {contractsLoading ? (
+                  <RefreshCw className="w-3 h-3 mr-1.5 animate-spin" />
+                ) : (
+                  <Search className="w-3 h-3 mr-1.5" />
+                )}
+                {contractsLoading ? "Поиск..." : contractsData ? "Обновить" : "Найти"}
+              </Button>
+            </div>
+          </div>
+          {selectedContract && (
+            <div className="flex items-center gap-2 mt-2 p-2 rounded bg-primary/10 border border-primary/30">
+              <CheckCircle className="w-3 h-3 text-primary shrink-0" />
+              <span className="font-mono text-[10px] text-primary">
+                Выбран: {fmtISK(selectedContract.pricePerUnit)} ISK/шт × {runs} прогонов = +{fmtISK(contractExtraCost)} ISK к затратам
+              </span>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="px-4 pb-3">
+          {!contractsEnabled && (
+            <p className="font-mono text-[10px] text-muted-foreground">
+              Нажмите «Найти» для поиска контрактов в The Forge (до 30 сек).
+            </p>
+          )}
+          {contractsLoading && (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-8 w-full rounded" />
+              ))}
+              <p className="font-mono text-[9px] text-muted-foreground">Проверяем контракты в The Forge...</p>
+            </div>
+          )}
+          {contractsError && (
+            <div className="flex items-center gap-2 text-destructive">
+              <AlertCircle className="w-3 h-3" />
+              <span className="font-mono text-xs">Ошибка загрузки контрактов</span>
+            </div>
+          )}
+          {contractsData && !contractsLoading && (
+            contractsData.contracts.length === 0 ? (
+              <p className="font-mono text-xs text-muted-foreground">Контрактов с этим имплантом не найдено (проверено {contractsData.checkedCount} контрактов).</p>
+            ) : (
+              <div className="space-y-1">
+                <p className="font-mono text-[9px] text-muted-foreground mb-2">
+                  Найдено {contractsData.contracts.length} контракт(ов) · проверено {contractsData.checkedCount} · обновлено {new Date(contractsData.updatedAt).toLocaleTimeString("ru-RU")}
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        {["", "Цена/шт", "Кол-во", "Итого", "Истекает"].map((h, i) => (
+                          <th key={i} className={`py-1.5 px-3 font-mono text-[9px] tracking-widest uppercase text-muted-foreground ${i === 0 ? "w-8" : "text-right first:text-left"}`}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {contractsData.contracts.map((c, idx) => {
+                        const isSelected = c.contractId === selectedContractId;
+                        const expires = new Date(c.dateExpired);
+                        const daysLeft = Math.ceil((expires.getTime() - Date.now()) / 86400000);
+                        return (
+                          <tr
+                            key={c.contractId}
+                            className={`border-b border-border/50 cursor-pointer transition-colors ${isSelected ? "bg-primary/10" : "hover:bg-muted/30"}`}
+                            onClick={() => setSelectedContractId(isSelected ? null : c.contractId)}
+                            data-testid={`row-contract-${idx}`}
+                          >
+                            <td className="py-2 px-3">
+                              <input
+                                type="radio"
+                                readOnly
+                                checked={isSelected}
+                                className="accent-primary"
+                                data-testid={`radio-contract-${idx}`}
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-right font-mono text-xs text-chart-2">{fmtISK(c.pricePerUnit)}</td>
+                            <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{c.quantity.toLocaleString()}</td>
+                            <td className="py-2 px-3 text-right font-mono text-xs text-foreground">{fmtShort(c.price)} ISK</td>
+                            <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{daysLeft}д</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          )}
+        </CardContent>
+      </Card>
 
       {error && (
         <Card className="border-destructive/50">

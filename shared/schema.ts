@@ -213,6 +213,21 @@ export const STATION_PRESETS_REACTION: StationPreset[] = [
   { id: "ikoskio-tatara", label: "Ikoskio / Tatara — Svarog Manufacture", system: "ikoskio", facilityMeBonus: 2.4, facilityTeBonus: 24.0, factoryTax: 1.5, structureFee: 4.0, autoJobCost: true  },
 ];
 
+export interface ImplantContractListing {
+  contractId: number;
+  price: number;
+  quantity: number;
+  pricePerUnit: number;
+  dateExpired: string;
+  locationId: number;
+}
+
+export interface ImplantContractsResponse {
+  contracts: ImplantContractListing[];
+  checkedCount: number;
+  updatedAt: string;
+}
+
 export interface ImplantBlueprintItem {
   typeId: number;
   name: string;

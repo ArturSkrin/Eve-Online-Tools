@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { getMarketPrices, getPublicContracts, getContractItems, getTypeNames, searchTypes, getRegionOrders, getSystemCostIndices } from "./esi";
-import { EVE_REGIONS, NEURALINK_REACTION, RAPTURE_ALPHA_BLUEPRINT, calcMeQty, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice, type ImplantItemPrice } from "@shared/schema";
+import { EVE_REGIONS, NEURALINK_REACTION, RAPTURE_ALPHA_BLUEPRINT, calcMeQty, type AnalyzedContract, type AnalyzedItem, type ScanProgress, type ReactionItemPrice, type ImplantItemPrice, type ImplantContractListing } from "@shared/schema";
 import { log } from "./index";
 
 let scanProgress: ScanProgress = {
@@ -271,6 +271,77 @@ export async function registerRoutes(
       });
     } catch (err: any) {
       log(`Error fetching implant prices: ${err.message}`, "esi");
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  const RAPTURE_ALPHA_TYPE_ID = 57123;
+  const FORGE_REGION_ID = 10000002;
+  let implantContractCache: { contracts: ImplantContractListing[]; checkedCount: number; fetchedAt: number } | null = null;
+  const IMPLANT_CONTRACT_CACHE_MS = 15 * 60 * 1000;
+
+  app.get("/api/implants/rapture-alpha/contracts", async (_req, res) => {
+    try {
+      const now = Date.now();
+      if (implantContractCache && now - implantContractCache.fetchedAt < IMPLANT_CONTRACT_CACHE_MS) {
+        return res.json({ contracts: implantContractCache.contracts, checkedCount: implantContractCache.checkedCount, cached: true, updatedAt: new Date(implantContractCache.fetchedAt).toISOString() });
+      }
+
+      log("Fetching implant contracts from The Forge...", "esi");
+
+      const firstPage = await getPublicContracts(FORGE_REGION_ID, 1);
+      const totalPages = Math.min(firstPage.totalPages, 4);
+      let allContracts = [...firstPage.contracts];
+
+      if (totalPages > 1) {
+        const extraPages = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, i) => getPublicContracts(FORGE_REGION_ID, i + 2))
+        );
+        for (const p of extraPages) allContracts = allContracts.concat(p.contracts);
+      }
+
+      const candidates = allContracts
+        .filter((c) => c.type === "item_exchange" && c.price > 0)
+        .sort((a, b) => a.price - b.price)
+        .slice(0, 300);
+
+      log(`Checking items for ${candidates.length} candidate contracts...`, "esi");
+
+      const found: ImplantContractListing[] = [];
+      const BATCH = 20;
+
+      for (let i = 0; i < candidates.length && found.length < 5; i += BATCH) {
+        const batch = candidates.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          batch.map(async (c) => {
+            const items = await getContractItems(c.contract_id);
+            const target = items.find((it) => it.type_id === RAPTURE_ALPHA_TYPE_ID && it.is_included);
+            if (!target) return null;
+            const qty = target.quantity;
+            return {
+              contractId: c.contract_id,
+              price: c.price,
+              quantity: qty,
+              pricePerUnit: c.price / qty,
+              dateExpired: c.date_expired,
+              locationId: c.start_location_id,
+            } as ImplantContractListing;
+          })
+        );
+        for (const r of results) {
+          if (r.status === "fulfilled" && r.value) found.push(r.value);
+        }
+      }
+
+      found.sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+      const top5 = found.slice(0, 5);
+
+      implantContractCache = { contracts: top5, checkedCount: candidates.length, fetchedAt: now };
+
+      log(`Found ${top5.length} contracts with High-grade Rapture Alpha`, "esi");
+      res.json({ contracts: top5, checkedCount: candidates.length, cached: false, updatedAt: new Date().toISOString() });
+    } catch (err: any) {
+      log(`Error fetching implant contracts: ${err.message}`, "esi");
       res.status(500).json({ message: err.message });
     }
   });

@@ -18,6 +18,10 @@ A web application for EVE Online market intelligence. Two main sections: Contrac
   - Configurable: runs, job cost per run, sales tax %, broker fee %
   - Save settings to localStorage (persists between sessions)
 
+### Contracts Search for Implants
+- **Contract search** (`GET /api/implants/rapture-alpha/contracts`) fetches up to 4 pages of The Forge item_exchange contracts, checks up to 300 candidates in batches of 20, returns top 5 cheapest by price per unit; 15-min cache
+- **Frontend**: "Найти" button triggers search (lazy); radio-select a contract to add its price to all 4 margin scenarios; "Убрать" clears selection; status bar shows contracts found, candidates checked, update time
+
 ### Implants Section (`/implants`)
 - **High-grade Rapture Alpha**: Manufacturing profitability calculator with live Jita prices
   - Recipe: Nano-Factory×1, Morphite×79, Crystalline Isogen-10×360, Synthetic Synapses×542, Cryoprotectant Solution×594 → High-grade Rapture Alpha×1
