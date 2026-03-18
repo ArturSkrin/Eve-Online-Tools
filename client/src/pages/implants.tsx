@@ -301,7 +301,7 @@ export default function ImplantsPage() {
   );
 
   const contractExtraCost = useMemo(
-    () => (selectedContract ? selectedContract.pricePerUnit * runs : 0),
+    () => (selectedContract ? selectedContract.pricePerRun * runs : 0),
     [selectedContract, runs]
   );
 
@@ -675,7 +675,7 @@ export default function ImplantsPage() {
             <div className="flex items-center gap-2 mt-2 p-2 rounded bg-primary/10 border border-primary/30">
               <CheckCircle className="w-3 h-3 text-primary shrink-0" />
               <span className="font-mono text-[10px] text-primary">
-                Выбран: {fmtISK(selectedContract.pricePerUnit)} ISK/шт × {runs} прогонов = +{fmtISK(contractExtraCost)} ISK к затратам
+                Выбран: {fmtISK(selectedContract.pricePerRun)} ISK/прогон × {runs} прогонов = +{fmtISK(contractExtraCost)} ISK к затратам
               </span>
             </div>
           )}
@@ -712,7 +712,7 @@ export default function ImplantsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/30">
-                        {["", "Цена/шт", "Кол-во", "Итого", "Истекает"].map((h, i) => (
+                        {["", "Цена/прогон", "Прогонов BPC", "Итого", "Истекает"].map((h, i) => (
                           <th key={i} className={`py-1.5 px-3 font-mono text-[9px] tracking-widest uppercase text-muted-foreground ${i === 0 ? "w-8" : "text-right first:text-left"}`}>{h}</th>
                         ))}
                       </tr>
@@ -738,8 +738,8 @@ export default function ImplantsPage() {
                                 data-testid={`radio-contract-${idx}`}
                               />
                             </td>
-                            <td className="py-2 px-3 text-right font-mono text-xs text-chart-2">{fmtISK(c.pricePerUnit)}</td>
-                            <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{c.quantity.toLocaleString()}</td>
+                            <td className="py-2 px-3 text-right font-mono text-xs text-chart-2">{fmtISK(c.pricePerRun)}</td>
+                            <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{c.bpcRuns.toLocaleString()}</td>
                             <td className="py-2 px-3 text-right font-mono text-xs text-foreground">{fmtShort(c.price)} ISK</td>
                             <td className="py-2 px-3 text-right font-mono text-xs text-muted-foreground">{daysLeft}д</td>
                           </tr>

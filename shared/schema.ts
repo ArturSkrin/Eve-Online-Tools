@@ -217,7 +217,8 @@ export interface ImplantContractListing {
   contractId: number;
   price: number;
   quantity: number;
-  pricePerUnit: number;
+  bpcRuns: number;
+  pricePerRun: number;
   dateExpired: string;
   locationId: number;
 }

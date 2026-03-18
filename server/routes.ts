@@ -275,10 +275,24 @@ export async function registerRoutes(
     }
   });
 
-  const RAPTURE_ALPHA_TYPE_ID = 57123;
   const FORGE_REGION_ID = 10000002;
   let implantContractCache: { contracts: ImplantContractListing[]; checkedCount: number; fetchedAt: number } | null = null;
   const IMPLANT_CONTRACT_CACHE_MS = 15 * 60 * 1000;
+  let raptureAlphaBpcTypeId: number | null = null;
+
+  async function getRaptureAlphaBpcTypeId(): Promise<number> {
+    if (raptureAlphaBpcTypeId) return raptureAlphaBpcTypeId;
+    const results = await searchTypes("High-grade Rapture Alpha Blueprint");
+    const found = results.find((r) => r.typeName.toLowerCase().includes("rapture alpha blueprint"));
+    if (found) {
+      raptureAlphaBpcTypeId = found.typeId;
+      log(`Resolved Rapture Alpha BPC typeId: ${raptureAlphaBpcTypeId}`, "esi");
+      return raptureAlphaBpcTypeId;
+    }
+    log("Could not resolve Rapture Alpha BPC typeId, using fallback 57124", "esi");
+    raptureAlphaBpcTypeId = 57124;
+    return raptureAlphaBpcTypeId;
+  }
 
   app.get("/api/implants/rapture-alpha/contracts", async (_req, res) => {
     try {
@@ -287,7 +301,8 @@ export async function registerRoutes(
         return res.json({ contracts: implantContractCache.contracts, checkedCount: implantContractCache.checkedCount, cached: true, updatedAt: new Date(implantContractCache.fetchedAt).toISOString() });
       }
 
-      log("Fetching implant contracts from The Forge...", "esi");
+      const bpcTypeId = await getRaptureAlphaBpcTypeId();
+      log(`Fetching implant BPC contracts from The Forge (bpcTypeId=${bpcTypeId})...`, "esi");
 
       const firstPage = await getPublicContracts(FORGE_REGION_ID, 1);
       const totalPages = Math.min(firstPage.totalPages, 4);
@@ -315,14 +330,19 @@ export async function registerRoutes(
         const results = await Promise.allSettled(
           batch.map(async (c) => {
             const items = await getContractItems(c.contract_id);
-            const target = items.find((it) => it.type_id === RAPTURE_ALPHA_TYPE_ID && it.is_included);
+            const target = items.find(
+              (it) => it.type_id === bpcTypeId && it.is_included && it.is_blueprint_copy
+            );
             if (!target) return null;
             const qty = target.quantity;
+            const bpcRuns = target.runs ?? 1;
+            const totalRuns = qty * bpcRuns;
             return {
               contractId: c.contract_id,
               price: c.price,
               quantity: qty,
-              pricePerUnit: c.price / qty,
+              bpcRuns: totalRuns,
+              pricePerRun: c.price / totalRuns,
               dateExpired: c.date_expired,
               locationId: c.start_location_id,
             } as ImplantContractListing;
@@ -333,12 +353,12 @@ export async function registerRoutes(
         }
       }
 
-      found.sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+      found.sort((a, b) => a.pricePerRun - b.pricePerRun);
       const top5 = found.slice(0, 5);
 
       implantContractCache = { contracts: top5, checkedCount: candidates.length, fetchedAt: now };
 
-      log(`Found ${top5.length} contracts with High-grade Rapture Alpha`, "esi");
+      log(`Found ${top5.length} BPC contracts with High-grade Rapture Alpha Blueprint`, "esi");
       res.json({ contracts: top5, checkedCount: candidates.length, cached: false, updatedAt: new Date().toISOString() });
     } catch (err: any) {
       log(`Error fetching implant contracts: ${err.message}`, "esi");
