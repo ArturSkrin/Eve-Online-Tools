@@ -7,6 +7,9 @@ vite.config.ts.*
 .replit
 replit.md
 nginx.conf
-docker-compose.yml
 attached_assets
 .local
+
+nginx/
+certs/
+.env
