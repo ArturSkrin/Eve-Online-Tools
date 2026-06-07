@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eve-app
+  namespace: eve
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eve-app
+  template:
+    metadata:
+      labels:
+        app: eve-app
+    spec:
+      containers:
+        - name: eve-app
+          image: ghcr.io/arturskrin/eve-online-tools:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "5000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: eve-secrets
+                  key: DATABASE_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eve-app
+  namespace: eve
+spec:
+  selector:
+    app: eve-app
+  ports:
+    - port: 80
+      targetPort: 5000
