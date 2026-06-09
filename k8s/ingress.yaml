@@ -3,10 +3,26 @@ kind: Ingress
 metadata:
   name: eve
   namespace: eve
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-cloudflare
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - evetools.skrin.pp.ua
+      secretName: evetools-tls
   rules:
     - host: eve.lab
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: eve-app
+                port:
+                  number: 80
+    - host: evetools.skrin.pp.ua
       http:
         paths:
           - path: /
