@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { vitalsMiddleware, registerVitals } from "./vitals";
 
 const app = express();
 const httpServer = createServer(app);
@@ -21,6 +22,11 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+// Request counters and GET /internal/vitals for the Daedalus health tracker. Registered before the routes so
+// every /api request is counted, and before the static catch-all so the endpoint is reachable.
+app.use(vitalsMiddleware);
+registerVitals(app);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
