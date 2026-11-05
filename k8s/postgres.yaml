@@ -1,3 +1,21 @@
+# Database on a persistent local-path volume (needs local-path-provisioner in the cluster). Before this it ran
+# on emptyDir, so recreating the pod wiped saved deals, character logins and the synced wallet history.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data
+  namespace: eve
+  annotations:
+    # Never let Argo delete the claim (and with it the data) because it vanished from git by mistake.
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -5,6 +23,9 @@ metadata:
   namespace: eve
 spec:
   replicas: 1
+  # Two Postgres processes must never open the same data directory: stop the old pod before starting a new one.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: postgres
@@ -21,12 +42,21 @@ spec:
           envFrom:
             - secretRef:
                 name: eve-secrets
+          env:
+            # a subdirectory, so initdb finds an empty folder even if the volume root has anything in it
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+            periodSeconds: 10
           volumeMounts:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
       volumes:
         - name: pgdata
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: postgres-data
 ---
 apiVersion: v1
 kind: Service
