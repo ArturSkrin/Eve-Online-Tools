@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { ESI_BASE, USER_AGENT } from "./esi";
+import { ESI_BASE, USER_AGENT, esiError } from "./esi";
 import { esiAuth } from "./character-sync";
 import { eveCharacters, walletJournal, walletTransactions, type TradeProfile } from "@shared/schema";
 
@@ -23,7 +23,7 @@ async function esiPublic<T>(path: string): Promise<T> {
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
     signal: AbortSignal.timeout(20_000),
   });
-  if (!res.ok) throw new Error(`ESI ${res.status} on ${path}`);
+  if (!res.ok) throw esiError(res.status, await res.text(), path);
   const data = (await res.json()) as T;
   publicCache.set(path, data);
   return data;

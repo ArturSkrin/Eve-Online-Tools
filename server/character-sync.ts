@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "./db";
-import { ESI_BASE, USER_AGENT } from "./esi";
+import { ESI_BASE, USER_AGENT, esiError } from "./esi";
 import { decryptToken, encryptToken, requestToken, SsoGrantError } from "./auth";
 import { eveCharacters, industryJobs, walletJournal, walletTransactions } from "@shared/schema";
 import { log } from "./index";
@@ -80,14 +80,13 @@ export async function esiAuth<T>(characterId: number, path: string, params: Reco
     }
     if (res.status === 401 || res.status === 403) accessTokens.delete(characterId);
     if (res.status >= 500 || res.status === 420 || res.status === 401) {
-      lastFailure = `${res.status} ${(await res.text()).slice(0, 200)}`;
+      lastFailure = esiError(res.status, await res.text(), path).message;
       await sleep(2000 * (attempt + 1));
       continue;
     }
-    throw new Error(`ESI ${res.status} on ${path}: ${await res.text()}`);
+    throw esiError(res.status, await res.text(), path);
   }
-  // 5xx/504 here usually means ESI itself is down or degraded, not this app: check https://esi.evetech.net/status
-  throw new Error(`ESI kept failing on ${path}: ${lastFailure}`);
+  throw new Error(lastFailure || `ESI kept failing on ${path}`);
 }
 
 // --- ESI payloads ------------------------------------------------------------------------------------------

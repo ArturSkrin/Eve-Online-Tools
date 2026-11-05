@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from "react";
+import { responseError } from "@/lib/queryClient";
 import { CharacterFees } from "@/components/character-fees";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -257,7 +258,7 @@ export default function ReactionsPage() {
     queryKey: ["/api/reactions/neuralink/prices", runs, facilityMeBonus],
     queryFn: async () => {
       const res = await fetch(`/api/reactions/neuralink/prices?runs=${runs}&facilityMeBonus=${facilityMeBonus}`);
-      if (!res.ok) throw new Error("Failed to fetch prices");
+      if (!res.ok) throw await responseError(res);
       return res.json();
     },
     staleTime: 5 * 60 * 1000,

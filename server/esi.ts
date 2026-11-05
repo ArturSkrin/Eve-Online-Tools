@@ -48,6 +48,37 @@ interface EsiTypeInfo {
 
 const typeNameCache = new Map<number, string>();
 
+/** An ESI request that failed, with a reason a player can act on (shown as-is in the UI). */
+export class EsiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+  }
+}
+
+export function esiError(status: number, body: string, path: string): EsiError {
+  let reason = body.trim();
+  try {
+    reason = JSON.parse(body)?.error ?? reason;
+  } catch {
+    // not JSON: keep the raw text
+  }
+  reason = reason.slice(0, 200);
+  const ccp = reason ? ` CCP: «${reason}»` : "";
+  if (status === 503 && /maintenance/i.test(reason)) {
+    return new EsiError(status, `ESI на обслуживании у CCP, данные появятся, когда его включат.${ccp}`);
+  }
+  if (status === 504 || /tranquility/i.test(reason)) {
+    return new EsiError(status, `Сервер EVE (Tranquility) не отвечает ESI: даунтайм или сбой у CCP.${ccp}`);
+  }
+  if (status === 420) {
+    return new EsiError(status, `ESI временно ограничил запросы с этого сервера из-за ошибок, подождите минуту.${ccp}`);
+  }
+  if (status >= 500) {
+    return new EsiError(status, `ESI временно недоступен (${status}).${ccp}`);
+  }
+  return new EsiError(status, `ESI ${status} на ${path}.${ccp}`);
+}
+
 async function esiFetch<T>(endpoint: string, params?: Record<string, string>): Promise<{ data: T; pages: number }> {
   const url = new URL(`${ESI_BASE}${endpoint}`);
   if (params) {
@@ -58,10 +89,7 @@ async function esiFetch<T>(endpoint: string, params?: Record<string, string>): P
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
   });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`ESI Error ${res.status}: ${text}`);
-  }
+  if (!res.ok) throw esiError(res.status, await res.text(), endpoint);
 
   const pages = parseInt(res.headers.get("x-pages") || "1");
   const data = (await res.json()) as T;
@@ -172,36 +200,29 @@ export async function getSystemCostIndices(systemId: number): Promise<IndustryCo
 
 const JITA_SYSTEM_ID = 30000142;
 
+// Throws on a failed request: "no orders" is an empty list from ESI, and a failure turned into a price of 0
+// would make every margin silently wrong during an outage.
 export async function getRegionOrders(regionId: number, typeId: number): Promise<{ sellMin: number; buyMax: number }> {
-  try {
-    let sellMin = Infinity;
-    let buyMax = 0;
+  let sellMin = Infinity;
+  let buyMax = 0;
 
-    const { data: sellOrders } = await esiFetch<any[]>(`/markets/${regionId}/orders/`, {
-      type_id: String(typeId),
-      order_type: "sell",
-    });
-
-    for (const order of sellOrders) {
-      if (order.system_id === JITA_SYSTEM_ID && order.price < sellMin) sellMin = order.price;
-    }
-
-    const { data: buyOrders } = await esiFetch<any[]>(`/markets/${regionId}/orders/`, {
-      type_id: String(typeId),
-      order_type: "buy",
-    });
-
-    for (const order of buyOrders) {
-      if (order.system_id === JITA_SYSTEM_ID && order.price > buyMax) buyMax = order.price;
-    }
-
-    return {
-      sellMin: sellMin === Infinity ? 0 : sellMin,
-      buyMax,
-    };
-  } catch {
-    return { sellMin: 0, buyMax: 0 };
+  const { data: sellOrders } = await esiFetch<any[]>(`/markets/${regionId}/orders/`, {
+    type_id: String(typeId),
+    order_type: "sell",
+  });
+  for (const order of sellOrders) {
+    if (order.system_id === JITA_SYSTEM_ID && order.price < sellMin) sellMin = order.price;
   }
+
+  const { data: buyOrders } = await esiFetch<any[]>(`/markets/${regionId}/orders/`, {
+    type_id: String(typeId),
+    order_type: "buy",
+  });
+  for (const order of buyOrders) {
+    if (order.system_id === JITA_SYSTEM_ID && order.price > buyMax) buyMax = order.price;
+  }
+
+  return { sellMin: sellMin === Infinity ? 0 : sellMin, buyMax };
 }
 
 // Names for many ids in one request each 1000 (POST /universe/names/), filling the same cache as getTypeName.

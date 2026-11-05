@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from "react";
+import { responseError } from "@/lib/queryClient";
 import { CharacterFees } from "@/components/character-fees";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -256,7 +257,7 @@ export default function ImplantsPage() {
     queryKey: ["/api/implants/rapture-alpha/prices", runs, me, facilityBonus],
     queryFn: async () => {
       const r = await fetch(`/api/implants/rapture-alpha/prices?runs=${runs}&me=${me}&facilityBonus=${facilityBonus}`);
-      if (!r.ok) throw new Error(await r.text());
+      if (!r.ok) throw await responseError(r);
       return r.json();
     },
     staleTime: 5 * 60 * 1000,
@@ -266,7 +267,7 @@ export default function ImplantsPage() {
     queryKey: ["/api/industry/cost-index/ikoskio"],
     queryFn: async () => {
       const r = await fetch("/api/industry/cost-index/ikoskio");
-      if (!r.ok) throw new Error(await r.text());
+      if (!r.ok) throw await responseError(r);
       return r.json();
     },
     staleTime: 60 * 60 * 1000,
@@ -289,7 +290,7 @@ export default function ImplantsPage() {
     queryKey: ["/api/implants/rapture-alpha/contracts"],
     queryFn: async () => {
       const r = await fetch("/api/implants/rapture-alpha/contracts");
-      if (!r.ok) throw new Error(await r.text());
+      if (!r.ok) throw await responseError(r);
       return r.json();
     },
     enabled: contractsEnabled,
@@ -765,7 +766,7 @@ export default function ImplantsPage() {
         <Card className="border-destructive/50">
           <CardContent className="flex items-center gap-2 p-4">
             <AlertCircle className="w-4 h-4 text-destructive" />
-            <span className="font-mono text-xs text-destructive">Ошибка загрузки цен. Проверьте соединение с ESI API.</span>
+            <span className="font-mono text-xs text-destructive">Ошибка загрузки цен: {(error as Error).message}</span>
           </CardContent>
         </Card>
       )}
