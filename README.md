@@ -16,7 +16,8 @@ sales are shown separately until a unit cost is entered for them on the "No cost
    - Connection type: *Authentication & API Access*
    - Callback URL: `https://<your host>/auth/eve/callback`
    - Scopes: `esi-wallet.read_character_wallet.v1`, `esi-industry.read_character_jobs.v1`,
-     `esi-markets.read_character_orders.v1`, `esi-skills.read_skills.v1`
+     `esi-markets.read_character_orders.v1`, `esi-skills.read_skills.v1`,
+     `esi-characters.read_standings.v1`
 2. Set these environment variables (`.env` for docker compose, the `eve-secrets` secret for k8s):
 
    | Variable | Value |
@@ -28,3 +29,11 @@ sales are shown separately until a unit cost is entered for them on the "No cost
 
 The tables are created on start (`server/ensure-schema.ts`), so an existing database needs no migration.
 Without these variables the rest of the app works as before and the page says login is not configured.
+
+## Character-based market fees
+
+The Tax & Fees cards on the reaction and Rapture Alpha calculators can take sales tax and broker fee from a
+logged-in character: Accounting, Broker Relations and its standings toward the hub station's owner corporation
+and faction (`server/trade-profile.ts`). When the character has sales on record, the tax actually charged on
+them is used instead of the formula. Characters that logged in before `esi-characters.read_standings.v1` was
+requested have to log in again for standings.

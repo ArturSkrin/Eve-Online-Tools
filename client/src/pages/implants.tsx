@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from "react";
+import { CharacterFees } from "@/components/character-fees";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -540,6 +541,12 @@ export default function ImplantsPage() {
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4 space-y-3">
+            <CharacterFees
+              onApply={(f) => {
+                if (f.salesTax != null) setSalesTax(f.salesTax);
+                if (f.brokerFee != null) setBrokerFee(f.brokerFee);
+              }}
+            />
             <div className="space-y-1">
               <Label className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Налог с продаж %</Label>
               <div className="flex items-center gap-2">

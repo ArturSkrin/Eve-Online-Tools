@@ -16,9 +16,10 @@ const SSO_TOKEN = "https://login.eveonline.com/v2/oauth/token";
 export const SSO_SCOPES = [
   "esi-wallet.read_character_wallet.v1",
   "esi-industry.read_character_jobs.v1",
-  // Not used by the ledger yet; requested now so the trading and industry modules do not need a re-login.
   "esi-markets.read_character_orders.v1",
+  // Accounting / Broker Relations and NPC standings: the calculators turn them into sales tax and broker fee.
   "esi-skills.read_skills.v1",
+  "esi-characters.read_standings.v1",
 ];
 
 declare module "express-session" {

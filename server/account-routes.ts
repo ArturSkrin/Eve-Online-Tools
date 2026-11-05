@@ -5,6 +5,7 @@ import { eveCharacters, type MeResponse } from "@shared/schema";
 import { isSsoConfigured, requireAccount } from "./auth";
 import { deleteCharacterData, isSyncing, syncAccount } from "./character-sync";
 import { buildLedger, setCostOverride } from "./ledger";
+import { buildTradeProfile } from "./trade-profile";
 
 const PERIODS = new Set([7, 30, 90, 365]);
 
@@ -51,6 +52,19 @@ export function registerAccountRoutes(app: Express) {
       if (!ch) return res.status(404).json({ message: "Character not found" });
       await deleteCharacterData([characterId]);
       res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Sales tax and broker fee for one character at one station, from its skills, standings and past sales.
+  app.get("/api/me/trade-profile", requireAccount, async (req, res, next) => {
+    try {
+      const characterId = Number(req.query.characterId);
+      const stationId = Number(req.query.stationId) || 60003760;
+      const profile = await buildTradeProfile(req.session.accountId!, characterId, stationId);
+      if (!profile) return res.status(404).json({ message: "Character not found" });
+      res.json(profile);
     } catch (err) {
       next(err);
     }

@@ -55,7 +55,7 @@ async function accessToken(characterId: number): Promise<string> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function esiAuth<T>(characterId: number, path: string, params: Record<string, string> = {}): Promise<{ data: T; pages: number }> {
+export async function esiAuth<T>(characterId: number, path: string, params: Record<string, string> = {}): Promise<{ data: T; pages: number }> {
   const url = new URL(`${ESI_BASE}${path}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 

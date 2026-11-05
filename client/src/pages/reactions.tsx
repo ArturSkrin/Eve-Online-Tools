@@ -1,4 +1,5 @@
 import { useState, useMemo, Fragment } from "react";
+import { CharacterFees } from "@/components/character-fees";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -512,6 +513,12 @@ export default function ReactionsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <CharacterFees
+              onApply={(f) => {
+                if (f.salesTax != null) setSalesTax(f.salesTax);
+                if (f.brokerFee != null) setBrokerFee(f.brokerFee);
+              }}
+            />
             <div className="space-y-2">
               <Label htmlFor="salesTax" className="font-mono text-xs">Sales Tax %</Label>
               <Input

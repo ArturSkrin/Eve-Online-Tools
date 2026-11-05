@@ -435,3 +435,28 @@ export interface LedgerResponse {
   daily: LedgerDailyRow[];
   oldestDataAt: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Market fees from a character's skills and standings
+// ---------------------------------------------------------------------------
+
+export const MARKET_HUBS = [
+  { stationId: 60003760, name: "Jita IV-4" },
+  { stationId: 60008494, name: "Amarr VIII" },
+  { stationId: 60011866, name: "Dodixie IX-20" },
+  { stationId: 60004588, name: "Rens VI-8" },
+  { stationId: 60005686, name: "Hek VIII-12" },
+] as const;
+
+export interface TradeProfile {
+  characterId: number;
+  name: string;
+  station: { id: number; name: string; ownerCorpId: number; ownerCorpName: string; factionId: number | null; factionName: string | null };
+  skills: { accounting: number; brokerRelations: number; advancedBrokerRelations: number } | null;
+  skillsError: string | null;
+  standings: { corp: number; faction: number } | null;
+  standingsError: string | null;
+  base: { salesTax: number; brokerFee: number };
+  salesTax: { formula: number | null; observed: number | null; observedSamples: number; value: number | null };
+  brokerFee: { formula: number | null; value: number | null };
+}
