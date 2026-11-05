@@ -61,6 +61,7 @@ async function esiAuth<T>(characterId: number, path: string, params: Record<stri
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${await accessToken(characterId)}`,
         "User-Agent": USER_AGENT,
@@ -239,6 +240,10 @@ async function syncIndustryJobs(characterId: number): Promise<number> {
 // --- orchestration -----------------------------------------------------------------------------------------
 
 const running = new Set<number>();
+
+export function isSyncing(characterId: number): boolean {
+  return running.has(characterId);
+}
 
 export interface SyncResult {
   characterId: number;

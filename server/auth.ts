@@ -81,6 +81,7 @@ export async function requestToken(body: Record<string, string>): Promise<TokenR
   if (!cfg) throw new Error("EVE SSO is not configured");
   const res = await fetch(SSO_TOKEN, {
     method: "POST",
+    signal: AbortSignal.timeout(30_000),
     headers: {
       Authorization: `Basic ${Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",

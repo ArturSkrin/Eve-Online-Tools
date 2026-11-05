@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartContainer } from "@/components/ui/chart";
@@ -156,7 +156,17 @@ export default function ProfitPage() {
   const [period, setPeriod] = useState("30");
   const [view, setView] = useState<ItemView>("sold");
 
-  const me = useQuery<MeResponse>({ queryKey: ["/api/me"] });
+  // The first sync runs in the background right after login; poll until every character has finished it.
+  const me = useQuery<MeResponse>({
+    queryKey: ["/api/me"],
+    refetchInterval: (q) =>
+      q.state.data?.characters.some((c) => c.syncing || !c.lastSyncAt) ? 3000 : false,
+  });
+  const syncStamp = me.data?.characters.map((c) => c.lastSyncAt).join("|");
+  useEffect(() => {
+    // A sync finished (here or in the hourly background run): the ledger has new rows.
+    if (syncStamp) queryClient.invalidateQueries({ queryKey: ["/api/ledger"] });
+  }, [syncStamp]);
   const loggedIn = (me.data?.characters.length ?? 0) > 0;
   const ledgerUrl = `/api/ledger?days=${period}`;
   const ledger = useQuery<LedgerResponse>({ queryKey: ["/api/ledger", period], queryFn: () => apiRequest("GET", ledgerUrl).then((r) => r.json()), enabled: loggedIn });
@@ -246,7 +256,7 @@ export default function ProfitPage() {
                   <div className="font-mono text-xs text-foreground">{c.name}</div>
                   <div className="font-mono text-[10px] text-muted-foreground">
                     {c.walletBalance != null ? `${isk(c.walletBalance)} ISK · ` : ""}
-                    {c.lastSyncAt ? `synced ${timeAgo(c.lastSyncAt)}` : "syncing…"}
+                    {c.syncing || !c.lastSyncAt ? "syncing…" : `synced ${timeAgo(c.lastSyncAt)}`}
                   </div>
                   {c.lastSyncError && (
                     <div className="flex items-center gap-1 text-[10px] text-destructive max-w-[16rem]" title={c.lastSyncError}>

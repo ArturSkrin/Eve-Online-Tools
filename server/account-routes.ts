@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "./db";
 import { eveCharacters, type MeResponse } from "@shared/schema";
 import { isSsoConfigured, requireAccount } from "./auth";
-import { deleteCharacterData, syncAccount } from "./character-sync";
+import { deleteCharacterData, isSyncing, syncAccount } from "./character-sync";
 import { buildLedger, setCostOverride } from "./ledger";
 
 const PERIODS = new Set([7, 30, 90, 365]);
@@ -23,6 +23,7 @@ export function registerAccountRoutes(app: Express) {
           walletBalance: c.walletBalance,
           lastSyncAt: c.lastSyncAt?.toISOString() ?? null,
           lastSyncError: c.lastSyncError,
+          syncing: isSyncing(c.characterId),
         })),
       };
       res.json(body);

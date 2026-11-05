@@ -374,6 +374,7 @@ export interface CharacterSummary {
   walletBalance: number | null;
   lastSyncAt: string | null;
   lastSyncError: string | null;
+  syncing: boolean;
 }
 
 export interface MeResponse {
