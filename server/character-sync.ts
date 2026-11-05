@@ -59,6 +59,7 @@ async function esiAuth<T>(characterId: number, path: string, params: Record<stri
   const url = new URL(`${ESI_BASE}${path}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
+  let lastFailure = "";
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(30_000),
@@ -79,12 +80,14 @@ async function esiAuth<T>(characterId: number, path: string, params: Record<stri
     }
     if (res.status === 401 || res.status === 403) accessTokens.delete(characterId);
     if (res.status >= 500 || res.status === 420 || res.status === 401) {
+      lastFailure = `${res.status} ${(await res.text()).slice(0, 200)}`;
       await sleep(2000 * (attempt + 1));
       continue;
     }
     throw new Error(`ESI ${res.status} on ${path}: ${await res.text()}`);
   }
-  throw new Error(`ESI kept failing on ${path}`);
+  // 5xx/504 here usually means ESI itself is down or degraded, not this app: check https://esi.evetech.net/status
+  throw new Error(`ESI kept failing on ${path}: ${lastFailure}`);
 }
 
 // --- ESI payloads ------------------------------------------------------------------------------------------
