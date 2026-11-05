@@ -55,25 +55,50 @@ async function accessToken(characterId: number): Promise<string> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function esiAuth<T>(characterId: number, path: string, params: Record<string, string> = {}): Promise<{ data: T; pages: number }> {
+export interface EsiAuthOptions {
+  /** Tries before giving up on 5xx / 420 / 401. */
+  attempts?: number;
+  timeoutMs?: number;
+  /** Sleep until the ESI error window resets when it runs low. Fine for background sync, not for a page load. */
+  waitOnErrorLimit?: boolean;
+}
+
+/** For requests a page is waiting on: one quick try, so an ESI outage fails fast instead of past proxy timeouts. */
+export const INTERACTIVE: EsiAuthOptions = { attempts: 1, timeoutMs: 10_000, waitOnErrorLimit: false };
+
+export async function esiAuth<T>(
+  characterId: number,
+  path: string,
+  params: Record<string, string> = {},
+  opts: EsiAuthOptions = {},
+): Promise<{ data: T; pages: number }> {
+  const { attempts = 3, timeoutMs = 30_000, waitOnErrorLimit = true } = opts;
   const url = new URL(`${ESI_BASE}${path}`);
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
 
   let lastFailure = "";
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(30_000),
-      headers: {
-        Authorization: `Bearer ${await accessToken(characterId)}`,
-        "User-Agent": USER_AGENT,
-        Accept: "application/json",
-      },
-    });
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    // outside the try: SSO and re-login failures must surface as themselves, not as an ESI timeout
+    const token = await accessToken(characterId);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "User-Agent": USER_AGENT,
+          Accept: "application/json",
+        },
+      });
+    } catch {
+      lastFailure = `ESI не ответил за ${timeoutMs / 1000} с (${path}): сбой у CCP или сети.`;
+      continue;
+    }
 
     // ESI blocks the IP for a while once too many requests fail; back off before getting there.
     const remain = Number(res.headers.get("x-esi-error-limit-remain") ?? 100);
     const reset = Number(res.headers.get("x-esi-error-limit-reset") ?? 0);
-    if (remain < 20) await sleep(Math.min(reset, 60) * 1000);
+    if (remain < 20 && waitOnErrorLimit) await sleep(Math.min(reset, 60) * 1000);
 
     if (res.ok) {
       return { data: (await res.json()) as T, pages: Number(res.headers.get("x-pages") || 1) };
@@ -81,7 +106,7 @@ export async function esiAuth<T>(characterId: number, path: string, params: Reco
     if (res.status === 401 || res.status === 403) accessTokens.delete(characterId);
     if (res.status >= 500 || res.status === 420 || res.status === 401) {
       lastFailure = esiError(res.status, await res.text(), path).message;
-      await sleep(2000 * (attempt + 1));
+      if (attempt + 1 < attempts) await sleep(2000 * (attempt + 1));
       continue;
     }
     throw esiError(res.status, await res.text(), path);

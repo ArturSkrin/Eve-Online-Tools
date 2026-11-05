@@ -3,6 +3,15 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 /** The reason a request failed: the server's { message } when it sent one, else the raw body. */
 export async function responseError(res: Response): Promise<Error> {
   const text = (await res.text()) || res.statusText;
+  // An HTML page means a proxy in front of the app answered (Cloudflare, nginx), not the app itself.
+  if (/^\s*</.test(text)) {
+    const timeout = [502, 504, 522, 524].includes(res.status);
+    return new Error(
+      timeout
+        ? `Сервер не ответил вовремя (${res.status}), запрос оборвал прокси. Попробуйте ещё раз через минуту.`
+        : `Ошибка ${res.status} от прокси перед сервером.`,
+    );
+  }
   try {
     const message = JSON.parse(text)?.message;
     if (typeof message === "string" && message) return new Error(message);

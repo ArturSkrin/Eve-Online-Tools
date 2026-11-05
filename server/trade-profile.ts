@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
 import { ESI_BASE, USER_AGENT, esiError } from "./esi";
-import { esiAuth } from "./character-sync";
+import { esiAuth, INTERACTIVE } from "./character-sync";
 import { eveCharacters, walletJournal, walletTransactions, type TradeProfile } from "@shared/schema";
 
 // NPC station market fees, in percent. Sales tax = base × (1 − 11% × Accounting).
@@ -21,7 +21,7 @@ async function esiPublic<T>(path: string): Promise<T> {
   if (publicCache.has(path)) return publicCache.get(path) as T;
   const res = await fetch(`${ESI_BASE}${path}`, {
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw esiError(res.status, await res.text(), path);
   const data = (await res.json()) as T;
@@ -60,7 +60,7 @@ async function cachedAuth<T>(characterId: number, path: string): Promise<T> {
   const key = `${characterId}:${path}`;
   const hit = charCache.get(key);
   if (hit && Date.now() - hit.at < 3600_000) return hit.data as T;
-  const { data } = await esiAuth<T>(characterId, path);
+  const { data } = await esiAuth<T>(characterId, path, {}, INTERACTIVE);
   charCache.set(key, { at: Date.now(), data });
   return data;
 }
@@ -101,43 +101,48 @@ export async function buildTradeProfile(accountId: string, characterId: number, 
 
   const station = await stationInfo(stationId);
 
-  let skills: TradeProfile["skills"] = null;
-  let skillsError: string | null = null;
-  if (!ch.scopes.includes("esi-skills.read_skills.v1")) {
-    skillsError = "Log in with this character again to grant skill access";
-  } else {
-    try {
-      const data = await cachedAuth<{ skills: Array<{ skill_id: number; active_skill_level: number }> }>(
-        characterId,
-        `/characters/${characterId}/skills/`,
-      );
-      const level = (id: number) => data.skills.find((s) => s.skill_id === id)?.active_skill_level ?? 0;
-      skills = {
-        accounting: level(SKILL.accounting),
-        brokerRelations: level(SKILL.brokerRelations),
-        advancedBrokerRelations: level(SKILL.advancedBrokerRelations),
-      };
-    } catch (err) {
-      skillsError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  let standings: TradeProfile["standings"] = null;
-  let standingsError: string | null = null;
-  if (!ch.scopes.includes("esi-characters.read_standings.v1")) {
-    standingsError = "Log in with this character again to grant standings access";
-  } else {
-    try {
-      const data = await cachedAuth<Array<{ from_id: number; from_type: string; standing: number }>>(
-        characterId,
-        `/characters/${characterId}/standings/`,
-      );
-      const of = (id: number | null) => (id == null ? 0 : data.find((s) => s.from_id === id)?.standing ?? 0);
-      standings = { corp: of(station.ownerCorpId), faction: of(station.factionId) };
-    } catch (err) {
-      standingsError = err instanceof Error ? err.message : String(err);
-    }
-  }
+  // Skills and standings are independent: fetch both at once so a slow ESI costs one timeout, not two.
+  const [skillsResult, standingsResult] = await Promise.all([
+    (async (): Promise<{ skills: TradeProfile["skills"]; error: string | null }> => {
+      if (!ch.scopes.includes("esi-skills.read_skills.v1")) {
+        return { skills: null, error: "Log in with this character again to grant skill access" };
+      }
+      try {
+        const data = await cachedAuth<{ skills: Array<{ skill_id: number; active_skill_level: number }> }>(
+          characterId,
+          `/characters/${characterId}/skills/`,
+        );
+        const level = (id: number) => data.skills.find((s) => s.skill_id === id)?.active_skill_level ?? 0;
+        return {
+          skills: {
+            accounting: level(SKILL.accounting),
+            brokerRelations: level(SKILL.brokerRelations),
+            advancedBrokerRelations: level(SKILL.advancedBrokerRelations),
+          },
+          error: null,
+        };
+      } catch (err) {
+        return { skills: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    })(),
+    (async (): Promise<{ standings: TradeProfile["standings"]; error: string | null }> => {
+      if (!ch.scopes.includes("esi-characters.read_standings.v1")) {
+        return { standings: null, error: "Log in with this character again to grant standings access" };
+      }
+      try {
+        const data = await cachedAuth<Array<{ from_id: number; from_type: string; standing: number }>>(
+          characterId,
+          `/characters/${characterId}/standings/`,
+        );
+        const of = (id: number | null) => (id == null ? 0 : data.find((s) => s.from_id === id)?.standing ?? 0);
+        return { standings: { corp: of(station.ownerCorpId), faction: of(station.factionId) }, error: null };
+      } catch (err) {
+        return { standings: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    })(),
+  ]);
+  const { skills, error: skillsError } = skillsResult;
+  const { standings, error: standingsError } = standingsResult;
 
   const formulaTax = skills ? round(SALES_TAX_BASE * (1 - 0.11 * skills.accounting)) : null;
   const observed = await observedSalesTax(characterId);
