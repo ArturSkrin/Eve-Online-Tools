@@ -1,7 +1,7 @@
 import { log } from "./index";
 
-const ESI_BASE = "https://esi.evetech.net/latest";
-const USER_AGENT = "EVEContractAnalyzer/1.0 (replit-app)";
+export const ESI_BASE = "https://esi.evetech.net/latest";
+export const USER_AGENT = "EVEContractAnalyzer/1.0 (replit-app)";
 
 interface EsiMarketPrice {
   type_id: number;
@@ -202,4 +202,34 @@ export async function getRegionOrders(regionId: number, typeId: number): Promise
   } catch {
     return { sellMin: 0, buyMax: 0 };
   }
+}
+
+// Names for many ids in one request each 1000 (POST /universe/names/), filling the same cache as getTypeName.
+// Ids ESI does not know make the whole batch fail, so a failed batch falls back to one-by-one lookups.
+export async function getTypeNamesBulk(typeIds: number[]): Promise<Map<number, string>> {
+  const result = new Map<number, string>();
+  const missing = Array.from(new Set(typeIds)).filter((id) => {
+    const cached = typeNameCache.get(id);
+    if (cached) result.set(id, cached);
+    return !cached;
+  });
+  for (let i = 0; i < missing.length; i += 1000) {
+    const batch = missing.slice(i, i + 1000);
+    try {
+      const res = await fetch(`${ESI_BASE}/universe/names/`, {
+        method: "POST",
+        headers: { "User-Agent": USER_AGENT, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(batch),
+      });
+      if (!res.ok) throw new Error(`ESI ${res.status}`);
+      const data = (await res.json()) as Array<{ id: number; name: string }>;
+      data.forEach((n) => {
+        typeNameCache.set(n.id, n.name);
+        result.set(n.id, n.name);
+      });
+    } catch {
+      (await getTypeNames(batch)).forEach((name, id) => result.set(id, name));
+    }
+  }
+  return result;
 }

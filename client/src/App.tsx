@@ -12,6 +12,7 @@ import SavedPage from "@/pages/saved";
 import HistoryPage from "@/pages/history";
 import ReactionsPage from "@/pages/reactions";
 import ImplantsPage from "@/pages/implants";
+import ProfitPage from "@/pages/profit";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/contracts/history" component={HistoryPage} />
       <Route path="/reactions" component={ReactionsPage} />
       <Route path="/implants" component={ImplantsPage} />
+      <Route path="/profit" component={ProfitPage} />
       <Route component={NotFound} />
     </Switch>
   );

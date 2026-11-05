@@ -1,8 +1,18 @@
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
-import { Search, FlaskConical, ArrowRight, TrendingUp, Zap } from "lucide-react";
+import { Search, FlaskConical, ArrowRight, TrendingUp, Zap, Wallet } from "lucide-react";
 
 const sections = [
+  {
+    title: "Profit",
+    description: "Log in with your characters and see what you actually earn: every sale matched against what you paid for it, minus taxes and fees.",
+    icon: Wallet,
+    href: "/profit",
+    accentColor: "text-chart-2",
+    accentBg: "bg-chart-2/10 border-chart-2/30",
+    glowColor: "shadow-[0_0_30px_-5px_hsl(145,60%,45%,0.15)]",
+    features: ["EVE SSO", "FIFO profit", "Fees & taxes", "Full history"],
+  },
   {
     title: "Contracts",
     description: "Scan public contracts across New Eden regions. Compare contract prices with market values to find profitable deals.",
@@ -52,7 +62,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sections.map((section) => (
             <Link key={section.title} href={section.href}>
               <Card

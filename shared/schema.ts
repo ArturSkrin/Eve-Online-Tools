@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, real, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, real, timestamp, boolean, jsonb, bigint, doublePrecision, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -288,3 +288,149 @@ export const NEURALINK_REACTION = {
     { typeId: 57460, name: "Axosomatic Neurolink Enhancer", quantity: 20, role: "output" as const, group: "Output" },
   ] as ReactionItem[],
 };
+
+// ---------------------------------------------------------------------------
+// Character data (EVE SSO) and the profit ledger
+// ---------------------------------------------------------------------------
+// ISK amounts use double precision: real (float4) keeps ~7 significant digits, which is off by
+// hundreds of ISK on billion-ISK numbers. ESI ids such as transaction and journal ids exceed int32.
+
+export const eveAccounts = pgTable("eve_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const eveCharacters = pgTable("eve_characters", {
+  characterId: bigint("character_id", { mode: "number" }).primaryKey(),
+  accountId: varchar("account_id").notNull(),
+  name: text("name").notNull(),
+  scopes: text("scopes").notNull(),
+  refreshTokenEnc: text("refresh_token_enc").notNull(),
+  walletBalance: doublePrecision("wallet_balance"),
+  lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+  lastSyncError: text("last_sync_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const walletTransactions = pgTable("wallet_transactions", {
+  transactionId: bigint("transaction_id", { mode: "number" }).primaryKey(),
+  characterId: bigint("character_id", { mode: "number" }).notNull(),
+  date: timestamp("date", { withTimezone: true }).notNull(),
+  typeId: integer("type_id").notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: doublePrecision("unit_price").notNull(),
+  isBuy: boolean("is_buy").notNull(),
+  isPersonal: boolean("is_personal").notNull(),
+  locationId: bigint("location_id", { mode: "number" }).notNull(),
+  clientId: bigint("client_id", { mode: "number" }).notNull(),
+  journalRefId: bigint("journal_ref_id", { mode: "number" }).notNull(),
+});
+
+export const walletJournal = pgTable("wallet_journal", {
+  id: bigint("id", { mode: "number" }).primaryKey(),
+  characterId: bigint("character_id", { mode: "number" }).notNull(),
+  date: timestamp("date", { withTimezone: true }).notNull(),
+  refType: text("ref_type").notNull(),
+  amount: doublePrecision("amount"),
+  balance: doublePrecision("balance"),
+  description: text("description"),
+  contextId: bigint("context_id", { mode: "number" }),
+  contextIdType: text("context_id_type"),
+  firstPartyId: bigint("first_party_id", { mode: "number" }),
+  secondPartyId: bigint("second_party_id", { mode: "number" }),
+  tax: doublePrecision("tax"),
+});
+
+export const industryJobs = pgTable("industry_jobs", {
+  jobId: bigint("job_id", { mode: "number" }).primaryKey(),
+  characterId: bigint("character_id", { mode: "number" }).notNull(),
+  activityId: integer("activity_id").notNull(),
+  blueprintTypeId: integer("blueprint_type_id").notNull(),
+  productTypeId: integer("product_type_id"),
+  runs: integer("runs").notNull(),
+  cost: doublePrecision("cost"),
+  status: text("status").notNull(),
+  facilityId: bigint("facility_id", { mode: "number" }).notNull(),
+  startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+  endDate: timestamp("end_date", { withTimezone: true }).notNull(),
+});
+
+// Per-unit cost for items that were not bought on the market (mined, reacted, built, looted),
+// so their sales can be counted as profit instead of revenue without a cost basis.
+export const costOverrides = pgTable("cost_overrides", {
+  accountId: varchar("account_id").notNull(),
+  typeId: integer("type_id").notNull(),
+  unitCost: doublePrecision("unit_cost").notNull(),
+}, (t) => [primaryKey({ columns: [t.accountId, t.typeId] })]);
+
+export type EveCharacter = typeof eveCharacters.$inferSelect;
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+export type WalletJournalEntry = typeof walletJournal.$inferSelect;
+export type IndustryJob = typeof industryJobs.$inferSelect;
+
+export interface CharacterSummary {
+  characterId: number;
+  name: string;
+  walletBalance: number | null;
+  lastSyncAt: string | null;
+  lastSyncError: string | null;
+}
+
+export interface MeResponse {
+  ssoConfigured: boolean;
+  characters: CharacterSummary[];
+}
+
+export interface LedgerItemRow {
+  typeId: number;
+  typeName: string;
+  soldQty: number;
+  revenue: number;
+  cogs: number;
+  salesTax: number;
+  profit: number;
+  marginPercent: number | null;
+  unmatchedQty: number;
+  unmatchedRevenue: number;
+  boughtQty: number;
+  spent: number;
+  openQty: number;
+  openCost: number;
+  costOverride: number | null;
+}
+
+export interface LedgerRefTypeRow {
+  refType: string;
+  income: number;
+  expense: number;
+  count: number;
+}
+
+export interface LedgerDailyRow {
+  date: string;
+  profit: number;
+  revenue: number;
+}
+
+export interface LedgerResponse {
+  periodDays: number | null;
+  from: string | null;
+  summary: {
+    revenue: number;
+    cogs: number;
+    grossProfit: number;
+    salesTax: number;
+    brokerFees: number;
+    industryCost: number;
+    netTradingProfit: number;
+    unmatchedRevenue: number;
+    inventoryAtCost: number;
+    walletBalance: number;
+    cashFlow: number;
+    transactionCount: number;
+  };
+  items: LedgerItemRow[];
+  refTypes: LedgerRefTypeRow[];
+  daily: LedgerDailyRow[];
+  oldestDataAt: string | null;
+}

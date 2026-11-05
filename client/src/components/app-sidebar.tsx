@@ -1,4 +1,4 @@
-import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu } from "lucide-react";
+import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -13,6 +13,14 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
+
+const accountItems = [
+  {
+    title: "Profit & Loss",
+    url: "/profit",
+    icon: Wallet,
+  },
+];
 
 const contractItems = [
   {
@@ -79,6 +87,30 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground flex items-center gap-2">
+            <Wallet className="w-3 h-3" />
+            Account
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {accountItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive} data-testid="nav-profit">
+                      <Link href={item.url}>
+                        <item.icon className="w-4 h-4" />
+                        <span className="font-mono text-xs">{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         <SidebarGroup>
           <SidebarGroupLabel className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
             Contracts
