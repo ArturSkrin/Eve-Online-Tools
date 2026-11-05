@@ -2,9 +2,53 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 import { log } from "./index";
 
-// init.sql only runs when the Postgres volume is created for the first time, so a deployment that already
-// has data would never get these tables. They are created here on every start instead; every statement is
-// idempotent. Keep in sync with shared/schema.ts and init.sql.
+// Every table the app uses is created here on start; every statement is idempotent. init.sql only runs under
+// docker compose, and only when the Postgres volume is first created; nothing runs it on Kubernetes, which is
+// why saved deals and scan history never had tables there. Keep in sync with shared/schema.ts and init.sql.
+export const BASE_DDL = `
+CREATE TABLE IF NOT EXISTS users (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cached_prices (
+  type_id INTEGER PRIMARY KEY,
+  type_name TEXT,
+  adjusted_price REAL,
+  average_price REAL,
+  jita_sell_min REAL,
+  jita_buy_max REAL,
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS saved_contracts (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  contract_id INTEGER NOT NULL,
+  region_id INTEGER NOT NULL,
+  contract_price REAL NOT NULL,
+  items_value REAL NOT NULL,
+  margin REAL NOT NULL,
+  margin_percent REAL NOT NULL,
+  item_count INTEGER NOT NULL,
+  title TEXT,
+  contract_type TEXT,
+  items JSONB,
+  saved_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS scan_history (
+  id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+  region_id INTEGER NOT NULL,
+  region_name TEXT NOT NULL,
+  total_contracts INTEGER NOT NULL,
+  analyzed_contracts INTEGER NOT NULL,
+  profitable_contracts INTEGER NOT NULL,
+  best_margin REAL,
+  scanned_at TIMESTAMP DEFAULT NOW()
+);
+`;
+
 export const CHARACTER_DDL = `
 CREATE TABLE IF NOT EXISTS session (
   sid VARCHAR PRIMARY KEY,
@@ -85,6 +129,7 @@ CREATE TABLE IF NOT EXISTS cost_overrides (
 `;
 
 export async function ensureSchema(): Promise<void> {
+  await db.execute(sql.raw(BASE_DDL));
   await db.execute(sql.raw(CHARACTER_DDL));
-  log("character tables ready", "db");
+  log("tables ready", "db");
 }
