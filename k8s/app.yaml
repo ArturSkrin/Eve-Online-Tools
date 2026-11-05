@@ -15,8 +15,9 @@ spec:
     spec:
       containers:
         - name: eve-app
-          image: ghcr.io/arturskrin/eve-online-tools:latest
-          imagePullPolicy: Always
+          # tag set by kustomization.yaml (commit sha), kept up to date by CI
+          image: ghcr.io/arturskrin/eve-online-tools
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           env:

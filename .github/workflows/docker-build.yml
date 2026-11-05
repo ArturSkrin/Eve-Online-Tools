@@ -5,8 +5,13 @@ on:
     branches:
       - main
 
+# One run at a time: two runs racing to bump the tag would push conflicting commits.
+concurrency:
+  group: build-and-deploy
+  cancel-in-progress: false
+
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -16,6 +21,9 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          # full history so the deploy step can rebase onto a main that moved during the build
+          fetch-depth: 0
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -30,3 +38,19 @@ jobs:
           docker build -t $IMAGE_NAME:latest -t $IMAGE_NAME:${{ github.sha }} .
           docker push $IMAGE_NAME:latest
           docker push $IMAGE_NAME:${{ github.sha }}
+
+      # Argo CD deploys whatever k8s/ says. Pointing kustomization.yaml at the image just pushed is the deploy.
+      # A commit made with GITHUB_TOKEN does not start another workflow run, so this does not loop.
+      - name: Deploy (point k8s at the new image)
+        run: |
+          sed -i "s/^    newTag: .*/    newTag: ${{ github.sha }}/" k8s/kustomization.yaml
+          git diff --quiet && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Deploy ${GITHUB_SHA::7}"
+          # main may have moved while the image built; the tag line is ours alone, so a rebase is safe.
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1

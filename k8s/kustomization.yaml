@@ -1,0 +1,13 @@
+# Argo CD renders this folder with kustomize. The image tag below is the commit the running image was built
+# from: the "Build and Push Docker Image" workflow rewrites it after every push to main and commits the change,
+# which is what makes Argo roll out a new version (a fixed :latest tag never changes the manifest).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - app.yaml
+  - ingress.yaml
+images:
+  - name: ghcr.io/arturskrin/eve-online-tools
+    newTag: e68a903d072365d0624bfd25e463a59188bf5b6d
