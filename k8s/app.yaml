@@ -29,6 +29,34 @@ spec:
                 secretKeyRef:
                   name: eve-secrets
                   key: DATABASE_URL
+            - name: SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: eve-secrets
+                  key: SESSION_SECRET
+                  # optional so the app still starts before the secret has the key; login stays off until then
+                  optional: true
+            - name: EVE_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: eve-secrets
+                  key: EVE_CLIENT_ID
+                  # optional so the app still starts before the secret has the key; login stays off until then
+                  optional: true
+            - name: EVE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: eve-secrets
+                  key: EVE_CLIENT_SECRET
+                  # optional so the app still starts before the secret has the key; login stays off until then
+                  optional: true
+            - name: EVE_CALLBACK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: eve-secrets
+                  key: EVE_CALLBACK_URL
+                  # optional so the app still starts before the secret has the key; login stays off until then
+                  optional: true
 ---
 apiVersion: v1
 kind: Service

@@ -3,6 +3,10 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { vitalsMiddleware, registerVitals } from "./vitals";
+import { ensureSchema } from "./ensure-schema";
+import { isSsoConfigured, registerAuthRoutes, setupSession } from "./auth";
+import { registerAccountRoutes } from "./account-routes";
+import { startBackgroundSync, syncCharacter } from "./character-sync";
 
 const app = express();
 const httpServer = createServer(app);
@@ -55,7 +59,9 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const body = JSON.stringify(capturedJsonResponse);
+        // ledger responses run to hundreds of KB; the head is enough for a log line
+        logLine += ` :: ${body.length > 500 ? `${body.slice(0, 500)}…` : body}`;
       }
 
       log(logLine);
@@ -66,6 +72,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  try {
+    await ensureSchema();
+  } catch (err) {
+    console.error("Could not create character tables:", err);
+  }
+  setupSession(app);
+  registerAuthRoutes(app, (characterId) => void syncCharacter(characterId));
+  registerAccountRoutes(app);
+  if (isSsoConfigured()) startBackgroundSync();
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
