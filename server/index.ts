@@ -7,6 +7,7 @@ import { ensureSchema } from "./ensure-schema";
 import { isSsoConfigured, registerAuthRoutes, setupSession } from "./auth";
 import { registerAccountRoutes } from "./account-routes";
 import { startBackgroundSync, syncCharacter } from "./character-sync";
+import { marketSnapshot, refreshMarket, startMarketRefresh } from "./market-cache";
 
 const app = express();
 const httpServer = createServer(app);
@@ -91,6 +92,24 @@ app.use((req, res, next) => {
   registerAuthRoutes(app, (characterId) => void syncCharacter(characterId));
   registerAccountRoutes(app);
   if (isSsoConfigured()) startBackgroundSync();
+  startMarketRefresh();
+
+  // Reaction scanner market data: cached Jita prices and daily volumes (see server/market-cache.ts).
+  app.get("/api/reactions/market", async (_req, res, next) => {
+    try {
+      res.json(await marketSnapshot());
+    } catch (err) {
+      next(err);
+    }
+  });
+  let lastForcedRefresh = 0;
+  app.post("/api/reactions/market/refresh", (_req, res) => {
+    // ESI caches orders for 5 minutes: refreshing more often only burns the error budget.
+    if (Date.now() - lastForcedRefresh < 5 * 60 * 1000) return res.json({ started: false });
+    lastForcedRefresh = Date.now();
+    void refreshMarket({ force: true });
+    res.json({ started: true });
+  });
 
   await registerRoutes(httpServer, app);
 

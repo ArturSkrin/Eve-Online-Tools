@@ -111,6 +111,20 @@ CREATE TABLE IF NOT EXISTS industry_jobs (
   end_date TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS market_prices (
+  type_id INTEGER PRIMARY KEY,
+  sell_min DOUBLE PRECISION,
+  buy_max DOUBLE PRECISION,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS market_volumes (
+  type_id INTEGER PRIMARY KEY,
+  avg_volume_30 DOUBLE PRECISION NOT NULL,
+  avg_price_7 DOUBLE PRECISION,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS cost_overrides (
   account_id VARCHAR NOT NULL,
   type_id INTEGER NOT NULL,

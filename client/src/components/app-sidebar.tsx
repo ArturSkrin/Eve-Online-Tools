@@ -52,6 +52,11 @@ const contractItems = [
 
 const reactionItems = [
   {
+    title: "Reaction Scanner",
+    url: "/reactions/scanner",
+    icon: FlaskConical,
+  },
+  {
     title: "Neuralink Enhancer",
     url: "/reactions",
     icon: Beaker,

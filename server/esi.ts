@@ -254,3 +254,18 @@ export async function getTypeNamesBulk(typeIds: number[]): Promise<Map<number, s
   }
   return result;
 }
+
+export interface EsiHistoryDay {
+  date: string;
+  average: number;
+  highest: number;
+  lowest: number;
+  volume: number;
+  order_count: number;
+}
+
+/** Daily market history of one type in a region (about 13 months, one entry per day that had trades). */
+export async function getMarketHistory(regionId: number, typeId: number): Promise<EsiHistoryDay[]> {
+  const { data } = await esiFetch<EsiHistoryDay[]>(`/markets/${regionId}/history/`, { type_id: String(typeId) });
+  return data;
+}

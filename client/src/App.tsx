@@ -11,6 +11,7 @@ import ManufacturingPage from "@/pages/manufacturing";
 import SavedPage from "@/pages/saved";
 import HistoryPage from "@/pages/history";
 import ReactionsPage from "@/pages/reactions";
+import ReactionScannerPage from "@/pages/reaction-scanner";
 import ImplantsPage from "@/pages/implants";
 import ProfitPage from "@/pages/profit";
 import SkillsPage from "@/pages/skills";
@@ -25,6 +26,7 @@ function Router() {
       <Route path="/contracts/saved" component={SavedPage} />
       <Route path="/contracts/history" component={HistoryPage} />
       <Route path="/reactions" component={ReactionsPage} />
+      <Route path="/reactions/scanner" component={ReactionScannerPage} />
       <Route path="/implants" component={ImplantsPage} />
       <Route path="/profit" component={ProfitPage} />
       <Route path="/skills" component={SkillsPage} />

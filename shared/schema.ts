@@ -460,3 +460,34 @@ export interface TradeProfile {
   salesTax: { formula: number | null; observed: number | null; observedSamples: number; value: number | null };
   brokerFee: { formula: number | null; value: number | null };
 }
+
+// ---------------------------------------------------------------------------
+// Market cache for the reaction scanner (Jita best prices, The Forge daily volume)
+// ---------------------------------------------------------------------------
+
+export const marketPrices = pgTable("market_prices", {
+  typeId: integer("type_id").primaryKey(),
+  sellMin: doublePrecision("sell_min"),
+  buyMax: doublePrecision("buy_max"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export const marketVolumes = pgTable("market_volumes", {
+  typeId: integer("type_id").primaryKey(),
+  /** Units traded per day in The Forge, averaged over 30 days (days without trades count as 0). */
+  avgVolume30: doublePrecision("avg_volume_30").notNull(),
+  avgPrice7: doublePrecision("avg_price_7"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export interface ReactionMarketResponse {
+  prices: Record<number, { sell: number | null; buy: number | null }>;
+  volumes: Record<number, { avgVolume30: number; avgPrice7: number | null }>;
+  /** CCP adjusted prices: the base of the job cost (EIV). */
+  adjusted: Record<number, number>;
+  costIndex: { systemId: number; systemName: string; reaction: number } | null;
+  pricesUpdatedAt: string | null;
+  volumesUpdatedAt: string | null;
+  refreshing: boolean;
+  lastError: string | null;
+}
