@@ -19,8 +19,9 @@ import {
 
 const STORAGE_KEY = "eve-fee-character";
 
-/** The calculators' built-in rates: NPC station with Accounting V and Broker Relations V, no standings. */
-export const DEFAULT_FEES = { salesTax: 3.6, brokerFee: 1.5 };
+/** The calculators' built-in rates: NPC station with Accounting V and Broker Relations V, no standings
+ *  (7.5% × (1 − 0.55) and 3% − 1.5%). */
+export const DEFAULT_FEES = { salesTax: 3.375, brokerFee: 1.5 };
 
 function DefaultsButton({
   onApply,

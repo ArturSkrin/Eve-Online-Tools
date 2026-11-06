@@ -490,7 +490,7 @@ export default function ReactionsPage() {
                 <Input
                   id="jobCost"
                   type="number"
-                  step="1000"
+                  step="any"
                   min="0"
                   value={jobCost}
                   onChange={(e) => setJobCost(parseFloat(e.target.value) || 0)}

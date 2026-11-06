@@ -6,9 +6,10 @@ import { eveCharacters, walletJournal, walletTransactions, type TradeProfile } f
 
 // NPC station market fees, in percent. Sales tax = base × (1 − 11% × Accounting).
 // Broker fee = base − 0.3 × Broker Relations − 0.03 × faction standing − 0.02 × owner corp standing.
-// CCP has changed the bases before. When the character has recent sales on record, the sales tax actually
-// charged (journal transaction_tax / sale value) wins over the formula, so a stale base cannot skew prices.
-export const SALES_TAX_BASE = 8;
+// Bases checked in game on 2026-11-06 (Jita 4-4: Accounting 0 → 7.5%, Broker Relations 2 and no standings
+// → 2.4%); sales tax went from 4% to 7.5% in March 2025. CCP changes these from time to time, so when the
+// character has recent sales on record, the tax actually charged (journal transaction_tax / sale value) wins.
+export const SALES_TAX_BASE = 7.5;
 export const BROKER_FEE_BASE = 3;
 
 const SKILL = { accounting: 16622, brokerRelations: 3446, advancedBrokerRelations: 16597 };
