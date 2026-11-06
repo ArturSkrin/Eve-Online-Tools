@@ -72,10 +72,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  try {
-    await ensureSchema();
-  } catch (err) {
-    console.error("Could not create character tables:", err);
+  // Postgres may still be starting (pods come up together on the cluster): keep trying for a minute before
+  // serving, since every route needs the tables.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await ensureSchema();
+      break;
+    } catch (err) {
+      if (attempt >= 30) {
+        console.error("Could not create tables, serving anyway:", err);
+        break;
+      }
+      log(`database not ready (${err instanceof Error ? err.message : err}), retrying`, "db");
+      await new Promise((r) => setTimeout(r, 2000));
+    }
   }
   setupSession(app);
   registerAuthRoutes(app, (characterId) => void syncCharacter(characterId));

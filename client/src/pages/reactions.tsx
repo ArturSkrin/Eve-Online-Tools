@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from "react";
 import { responseError } from "@/lib/queryClient";
-import { CharacterFees } from "@/components/character-fees";
+import { CharacterFees, DEFAULT_FEES } from "@/components/character-fees";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -226,8 +226,8 @@ function MarginCard({ result }: { result: MarginResult }) {
 export default function ReactionsPage() {
   const { toast } = useToast();
   const savedSettings = useMemo(() => loadReactionSettings(), []);
-  const [salesTax, setSalesTax] = useState<number>(savedSettings?.salesTax ?? 3.6);
-  const [brokerFee, setBrokerFee] = useState<number>(savedSettings?.brokerFee ?? 1.5);
+  const [salesTax, setSalesTax] = useState<number>(savedSettings?.salesTax ?? DEFAULT_FEES.salesTax);
+  const [brokerFee, setBrokerFee] = useState<number>(savedSettings?.brokerFee ?? DEFAULT_FEES.brokerFee);
   const [jobCost, setJobCost] = useState<number>(savedSettings?.jobCost ?? 138360);
   const [runs, setRuns] = useState(1);
   const [stationId, setStationId] = useState<string>(savedSettings?.stationId ?? "default");

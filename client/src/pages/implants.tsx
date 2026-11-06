@@ -1,6 +1,6 @@
 import { useState, useMemo, Fragment } from "react";
 import { responseError } from "@/lib/queryClient";
-import { CharacterFees } from "@/components/character-fees";
+import { CharacterFees, DEFAULT_FEES } from "@/components/character-fees";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -220,8 +220,8 @@ export default function ImplantsPage() {
   const [facilityTeBonus, setFacilityTeBonus] = useState<number>(saved?.facilityTeBonus ?? 0);
   const [factoryTax, setFactoryTax] = useState<number>(saved?.factoryTax ?? 0);
   const [structureFee, setStructureFee] = useState<number>(saved?.structureFee ?? 0);
-  const [salesTax, setSalesTax] = useState<number>(saved?.salesTax ?? 3.6);
-  const [brokerFee, setBrokerFee] = useState<number>(saved?.brokerFee ?? 1.5);
+  const [salesTax, setSalesTax] = useState<number>(saved?.salesTax ?? DEFAULT_FEES.salesTax);
+  const [brokerFee, setBrokerFee] = useState<number>(saved?.brokerFee ?? DEFAULT_FEES.brokerFee);
   const [useJobOverride, setUseJobOverride] = useState<boolean>(saved?.useJobOverride ?? false);
   const [jobCostOverride, setJobCostOverride] = useState<number>(saved?.jobCostOverride ?? 0);
 
