@@ -13,6 +13,7 @@ import HistoryPage from "@/pages/history";
 import ReactionsPage from "@/pages/reactions";
 import ImplantsPage from "@/pages/implants";
 import ProfitPage from "@/pages/profit";
+import SkillsPage from "@/pages/skills";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/reactions" component={ReactionsPage} />
       <Route path="/implants" component={ImplantsPage} />
       <Route path="/profit" component={ProfitPage} />
+      <Route path="/skills" component={SkillsPage} />
       <Route component={NotFound} />
     </Switch>
   );

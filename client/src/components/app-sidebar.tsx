@@ -1,4 +1,4 @@
-import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet } from "lucide-react";
+import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet, GraduationCap } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -19,6 +19,11 @@ const accountItems = [
     title: "Profit & Loss",
     url: "/profit",
     icon: Wallet,
+  },
+  {
+    title: "Skills",
+    url: "/skills",
+    icon: GraduationCap,
   },
 ];
 
@@ -98,7 +103,7 @@ export function AppSidebar() {
                 const isActive = location === item.url;
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive} data-testid="nav-profit">
+                    <SidebarMenuButton asChild isActive={isActive} data-testid={`nav-${item.url.slice(1)}`}>
                       <Link href={item.url}>
                         <item.icon className="w-4 h-4" />
                         <span className="font-mono text-xs">{item.title}</span>

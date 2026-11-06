@@ -6,6 +6,7 @@ import { isSsoConfigured, requireAccount } from "./auth";
 import { deleteCharacterData, isSyncing, syncAccount } from "./character-sync";
 import { buildLedger, setCostOverride } from "./ledger";
 import { buildTradeProfile } from "./trade-profile";
+import { buildSkillData } from "./skill-advisor";
 
 const PERIODS = new Set([7, 30, 90, 365]);
 
@@ -65,6 +66,17 @@ export function registerAccountRoutes(app: Express) {
       const profile = await buildTradeProfile(req.session.accountId!, characterId, stationId);
       if (!profile) return res.status(404).json({ message: "Character not found" });
       res.json(profile);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Skills, attributes and trade/industry activity for the skill advisor page.
+  app.get("/api/me/skills", requireAccount, async (req, res, next) => {
+    try {
+      const data = await buildSkillData(req.session.accountId!, Number(req.query.characterId));
+      if (!data) return res.status(404).json({ message: "Character not found" });
+      res.json(data);
     } catch (err) {
       next(err);
     }

@@ -3,14 +3,15 @@ import { db } from "./db";
 import { ESI_BASE, USER_AGENT, esiError } from "./esi";
 import { esiAuth, INTERACTIVE } from "./character-sync";
 import { eveCharacters, walletJournal, walletTransactions, type TradeProfile } from "@shared/schema";
+import { BROKER_FEE_BASE, SALES_TAX_BASE } from "@shared/skills";
 
 // NPC station market fees, in percent. Sales tax = base × (1 − 11% × Accounting).
 // Broker fee = base − 0.3 × Broker Relations − 0.03 × faction standing − 0.02 × owner corp standing.
 // Bases checked in game on 2026-11-06 (Jita 4-4: Accounting 0 → 7.5%, Broker Relations 2 and no standings
 // → 2.4%); sales tax went from 4% to 7.5% in March 2025. CCP changes these from time to time, so when the
 // character has recent sales on record, the tax actually charged (journal transaction_tax / sale value) wins.
-export const SALES_TAX_BASE = 7.5;
-export const BROKER_FEE_BASE = 3;
+// The bases live in shared/skills.ts, next to the skill advisor that uses them too.
+
 
 const SKILL = { accounting: 16622, brokerRelations: 3446, advancedBrokerRelations: 16597 };
 
@@ -18,7 +19,7 @@ const round = (v: number) => Math.round(v * 1000) / 1000;
 
 // Public, unauthenticated lookups (station owner, names) change almost never: cache for the process lifetime.
 const publicCache = new Map<string, unknown>();
-async function esiPublic<T>(path: string): Promise<T> {
+export async function esiPublic<T>(path: string): Promise<T> {
   if (publicCache.has(path)) return publicCache.get(path) as T;
   const res = await fetch(`${ESI_BASE}${path}`, {
     headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
