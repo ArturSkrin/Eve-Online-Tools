@@ -70,10 +70,21 @@ export async function refreshHistory(): Promise<void> {
     const avgVolume30 = last30.reduce((s, d) => s + d.volume, 0) / 30;
     const vol7 = last7.reduce((s, d) => s + d.volume, 0);
     const avgPrice7 = vol7 > 0 ? last7.reduce((s, d) => s + d.average * d.volume, 0) / vol7 : null;
+    // The day's highest trade is about where sell orders got filled (the daily average also mixes in sales
+    // into buy orders). The median of the last 7 trading days ignores a single panic buy.
+    const highs = last30
+      .slice(-7)
+      .map((d) => d.highest)
+      .sort((a, b) => a - b);
+    const highMedian7 = highs.length ? highs[Math.floor(highs.length / 2)] : null;
+    const tradeDays30 = last30.filter((d) => d.volume > 0).length;
     await db
       .insert(marketVolumes)
-      .values({ typeId, avgVolume30, avgPrice7, updatedAt: now })
-      .onConflictDoUpdate({ target: marketVolumes.typeId, set: { avgVolume30, avgPrice7, updatedAt: now } });
+      .values({ typeId, avgVolume30, avgPrice7, highMedian7, tradeDays30, updatedAt: now })
+      .onConflictDoUpdate({
+        target: marketVolumes.typeId,
+        set: { avgVolume30, avgPrice7, highMedian7, tradeDays30, updatedAt: now },
+      });
   });
   log(`reaction volumes: ${types.length - failed}/${types.length} updated`, "market");
 }
@@ -87,7 +98,12 @@ export async function refreshMarket(opts: { force?: boolean } = {}): Promise<voi
     const [v] = await db.select({ at: sql<Date | null>`max(${marketVolumes.updatedAt})` }).from(marketVolumes);
     const age = (at: Date | string | null) => (at ? Date.now() - new Date(at).getTime() : Infinity);
     if (opts.force || age(p?.at ?? null) > PRICES_EVERY_MS - 60_000) await refreshPrices();
-    if (age(v?.at ?? null) > HISTORY_EVERY_MS) await refreshHistory();
+    // Rows from before a column existed have it empty: refill them now instead of waiting 12 hours.
+    const [stale] = await db
+      .select({ n: sql<number>`count(*)` })
+      .from(marketVolumes)
+      .where(sql`${marketVolumes.tradeDays30} is null`);
+    if (age(v?.at ?? null) > HISTORY_EVERY_MS || Number(stale?.n) > 0) await refreshHistory();
   } catch (err) {
     lastError = err instanceof Error ? err.message : String(err);
     log(`market refresh failed: ${lastError}`, "market");
@@ -135,7 +151,12 @@ export async function marketSnapshot(): Promise<ReactionMarketResponse> {
     rows.length ? new Date(Math.max(...rows.map((r) => r.updatedAt.getTime()))).toISOString() : null;
   return {
     prices: Object.fromEntries(prices.map((p) => [p.typeId, { sell: p.sellMin, buy: p.buyMax }])),
-    volumes: Object.fromEntries(volumes.map((v) => [v.typeId, { avgVolume30: v.avgVolume30, avgPrice7: v.avgPrice7 }])),
+    volumes: Object.fromEntries(
+      volumes.map((v) => [
+        v.typeId,
+        { avgVolume30: v.avgVolume30, avgPrice7: v.avgPrice7, highMedian7: v.highMedian7, tradeDays30: v.tradeDays30 },
+      ]),
+    ),
     adjusted,
     costIndex: index,
     pricesUpdatedAt: latest(prices),

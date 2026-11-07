@@ -229,6 +229,22 @@ function Details({ r }: { r: ReactionResult }) {
         <Row label="Сырьё" value={isk(r.inputCost)} />
         <Row label="Запуск (EIV × индекс + налоги)" value={isk(r.jobCost)} />
         <Row label={`Выход: ${formatNumber(r.product.quantity)} шт. после налогов`} value={isk(r.outputValue)} />
+        <div className="text-[11px] space-y-0.5 pl-2 border-l border-border">
+          <Row label="Лучший селл сейчас" value={isk(r.product.quote.ask)} />
+          <Row label="Покупали за неделю" value={isk(r.product.quote.traded)} />
+          <Row
+            label="Считаем по"
+            value={isk(r.product.quote.price)}
+            className={r.product.quote.cappedToTrades ? "text-chart-3" : "text-foreground"}
+          />
+          {r.product.quote.tradeDays30 != null && (
+            <Row
+              label="Дней со сделками за 30"
+              value={String(r.product.quote.tradeDays30)}
+              className={r.product.quote.thin ? "text-chart-3" : "text-foreground"}
+            />
+          )}
+        </div>
         <div className="border-t pt-1.5">
           <Row label="Прибыль за запуск" value={isk(r.profit)} className={signClass(r.profit)} />
         </div>
@@ -406,6 +422,24 @@ export default function ReactionScannerPage() {
                 onChange={(v) => set("sellOutput", v)}
               />
             </div>
+            {settings.sellOutput === "sell" && (
+              <div className="col-span-2">
+                <Segmented
+                  label="Цена селл-ордера"
+                  value={settings.salePricing}
+                  options={[
+                    { id: "traded", label: "по реальным сделкам" },
+                    { id: "ask", label: "по текущему селлу" },
+                  ]}
+                  onChange={(v) => set("salePricing", v)}
+                />
+                <div className="text-[10px] text-muted-foreground leading-snug mt-1">
+                  {settings.salePricing === "traded"
+                    ? "Меньшее из: лучший селл сейчас и цена, по которой реально покупали за неделю"
+                    : "Как есть: самый дешёвый селл-ордер в Jita, даже если по нему никто не покупает"}
+                </div>
+              </div>
+            )}
           </div>
           <div className="space-y-3">
             <CharacterFees
@@ -506,6 +540,24 @@ export default function ReactionScannerPage() {
                             {isOpen ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
                             <img src={`https://images.evetech.net/types/${r.product.typeId}/icon?size=32`} alt="" className="w-5 h-5" />
                             <span className="text-foreground">{r.product.name}</span>
+                            {r.product.quote.cappedToTrades && (
+                              <Badge
+                                variant="outline"
+                                className="h-4 px-1 text-[9px] text-chart-3 border-chart-3/40"
+                                title={`В стакане ${isk(r.product.quote.ask)}, а покупали по ${isk(r.product.quote.traded)}: считаем по сделкам`}
+                              >
+                                цена ↓
+                              </Badge>
+                            )}
+                            {r.product.quote.thin && (
+                              <Badge
+                                variant="outline"
+                                className="h-4 px-1 text-[9px] text-muted-foreground"
+                                title={`Сделки были только ${r.product.quote.tradeDays30} из 30 дней: цена и объём ненадёжны`}
+                              >
+                                редко
+                              </Badge>
+                            )}
                             {r.missingPrices.length > 0 && (
                               <span title={`Нет цены: ${r.missingPrices.join(", ")}`}>
                                 <AlertTriangle className="w-3 h-3 text-chart-3" />

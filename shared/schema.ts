@@ -481,12 +481,19 @@ export const marketVolumes = pgTable("market_volumes", {
   /** Units traded per day in The Forge, averaged over 30 days (days without trades count as 0). */
   avgVolume30: doublePrecision("avg_volume_30").notNull(),
   avgPrice7: doublePrecision("avg_price_7"),
+  /** Median of the daily highest trade over the last 7 trading days: roughly what sell orders fill at. */
+  highMedian7: doublePrecision("high_median_7"),
+  /** Days with at least one trade in the last 30. */
+  tradeDays30: integer("trade_days_30"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
 export interface ReactionMarketResponse {
   prices: Record<number, { sell: number | null; buy: number | null }>;
-  volumes: Record<number, { avgVolume30: number; avgPrice7: number | null }>;
+  volumes: Record<
+    number,
+    { avgVolume30: number; avgPrice7: number | null; highMedian7: number | null; tradeDays30: number | null }
+  >;
   /** CCP adjusted prices: the base of the job cost (EIV). */
   adjusted: Record<number, number>;
   costIndex: { systemId: number; systemName: string; reaction: number } | null;

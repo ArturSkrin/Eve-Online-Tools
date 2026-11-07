@@ -125,6 +125,8 @@ CREATE TABLE IF NOT EXISTS market_volumes (
   avg_price_7 DOUBLE PRECISION,
   updated_at TIMESTAMPTZ NOT NULL
 );
+ALTER TABLE market_volumes ADD COLUMN IF NOT EXISTS high_median_7 DOUBLE PRECISION;
+ALTER TABLE market_volumes ADD COLUMN IF NOT EXISTS trade_days_30 INTEGER;
 
 CREATE TABLE IF NOT EXISTS cost_overrides (
   account_id VARCHAR NOT NULL,

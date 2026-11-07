@@ -107,6 +107,50 @@ export interface ScannerSettings {
   sellOutput: SellMode;
   /** Share of the product's daily market volume you can realistically sell, percent. */
   marketShare: number;
+  /**
+   * What a sell order is assumed to fetch. "traded": the lower of the current lowest ask and what sell orders
+   * actually filled at over the last week, because on a thin market one overpriced order sets the ask and
+   * never sells. "ask": the current lowest ask as is.
+   */
+  salePricing: SalePricing;
+}
+
+export type SalePricing = "traded" | "ask";
+
+/** A sale price with where it came from, so the page can say "the ask is above recent trades". */
+export interface SaleQuote {
+  /** Price used in the maths. */
+  price: number | null;
+  ask: number | null;
+  /** Median of the daily highest trade over the last 7 trading days. */
+  traded: number | null;
+  /** Recent trades are more than 10% below the ask: the ask is not what this sells for. */
+  cappedToTrades: boolean;
+  /** Fewer than 15 of the last 30 days had any trade. */
+  thin: boolean;
+  tradeDays30: number | null;
+}
+
+/** Below this share of days with trades, a product's price and volume are shaky. */
+const THIN_DAYS = 15;
+
+export function saleQuote(typeId: number, m: ReactionMarketResponse, s: ScannerSettings, mode: SellMode): SaleQuote {
+  const p = m.prices[typeId];
+  const v = m.volumes[typeId];
+  const traded = v?.highMedian7 ?? null;
+  const tradeDays30 = v?.tradeDays30 ?? null;
+  const thin = tradeDays30 != null && tradeDays30 < THIN_DAYS;
+  if (mode === "buy") {
+    // Selling into a buy order: the best bid is a real, fillable price.
+    return { price: p?.buy ?? null, ask: p?.sell ?? null, traded, cappedToTrades: false, thin, tradeDays30 };
+  }
+  const ask = p?.sell ?? null;
+  if (s.salePricing === "ask" || ask == null || traded == null) {
+    return { price: ask, ask, traded, cappedToTrades: false, thin, tradeDays30 };
+  }
+  // Always price at the lower of the two; only flag it when the gap is big enough to matter (10%), not the
+  // usual few percent between the ask and last week's fills on a healthy market.
+  return { price: Math.min(ask, traded), ask, traded, cappedToTrades: traded < ask * 0.9, thin, tradeDays30 };
 }
 
 export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
@@ -121,6 +165,7 @@ export const DEFAULT_SCANNER_SETTINGS: ScannerSettings = {
   buyInputs: "sell",
   sellOutput: "sell",
   marketShare: 20,
+  salePricing: "traded",
 };
 
 export interface LineItem {
@@ -137,7 +182,7 @@ export interface LineItem {
 export interface ReactionResult {
   formula: ReactionFormula;
   category: Category;
-  product: { typeId: number; name: string; quantity: number };
+  product: { typeId: number; name: string; quantity: number; quote: SaleQuote };
   inputs: LineItem[];
   /** ISK per run. Null when a price is missing. */
   inputCost: number | null;
@@ -177,10 +222,7 @@ export function analyzeReaction(
     const v = s.buyInputs === "sell" ? p?.sell : p?.buy != null ? p.buy * (1 + s.brokerFee / 100) : null;
     return v ?? null;
   };
-  const salePrice = (typeId: number) => {
-    const p = m.prices[typeId];
-    return (s.sellOutput === "sell" ? p?.sell : p?.buy) ?? null;
-  };
+  const salePrice = (typeId: number) => saleQuote(typeId, m, s, s.sellOutput).price;
 
   // The material bonus never takes an input below one unit per run (the game uses max(runs, ⌈qty×runs×ME⌉)),
   // so a 1-per-run input such as a Molecular Condenser gets no saving; for the rest rounding is negligible.
@@ -209,7 +251,8 @@ export function analyzeReaction(
 
   const product = f.products[0];
   const productName = typeOf(product.typeId)?.name ?? `#${product.typeId}`;
-  const net = netSale(salePrice(product.typeId), s, s.sellOutput);
+  const quote = saleQuote(product.typeId, m, s, s.sellOutput);
+  const net = netSale(quote.price, s, s.sellOutput);
   if (net == null) missing.push(productName);
   const outputValue = net == null ? null : net * product.quantity;
 
@@ -233,7 +276,7 @@ export function analyzeReaction(
   return {
     formula: f,
     category: categoryOf(f),
-    product: { typeId: product.typeId, name: productName, quantity: product.quantity },
+    product: { typeId: product.typeId, name: productName, quantity: product.quantity, quote },
     inputs,
     inputCost,
     jobCost,
