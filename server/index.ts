@@ -72,7 +72,22 @@ app.use((req, res, next) => {
   next();
 });
 
+// Startup diagnostics. On 2026-11-06 the pod exited with code 0 and not a single log line on every start for
+// a day, then started fine with nothing changed: Node had run out of things to wait for before the server
+// was listening. These lines say how far startup got and turn such an exit into a visible failure.
+let startupStep = "loading";
+let listening = false;
+console.log(`starting: node ${process.version}, pid ${process.pid}`);
+process.on("beforeExit", (code) => {
+  if (listening) return;
+  console.error(
+    `event loop ran empty during startup at step "${startupStep}" ` +
+      `(handles ${(process as any)._getActiveHandles?.().length}, requests ${(process as any)._getActiveRequests?.().length}); exiting with code 1`,
+  );
+  process.exitCode = code || 1;
+});
 (async () => {
+  startupStep = "creating tables";
   // Postgres may still be starting (pods come up together on the cluster): keep trying for a minute before
   // serving, since every route needs the tables.
   for (let attempt = 1; ; attempt++) {
@@ -88,6 +103,7 @@ app.use((req, res, next) => {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
+  startupStep = "registering routes";
   setupSession(app);
   registerAuthRoutes(app, (characterId) => void syncCharacter(characterId));
   registerAccountRoutes(app);
@@ -141,6 +157,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  startupStep = `listening on ${port}`;
   httpServer.listen(
     {
       port,
@@ -148,6 +165,7 @@ app.use((req, res, next) => {
       reusePort: true,
     },
     () => {
+      listening = true;
       log(`serving on port ${port}`);
     },
   );
