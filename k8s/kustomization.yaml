@@ -10,4 +10,4 @@ resources:
   - ingress.yaml
 images:
   - name: ghcr.io/arturskrin/eve-online-tools
-    newTag: ff40ee57827b181267cad68518b6fa772a0d085e
+    newTag: 2e872e8496097429bd09cc84d480e57902fa59ea
