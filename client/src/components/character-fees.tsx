@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,10 @@ const standing = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(2)}`;
 /**
  * Fills a calculator's sales tax and broker fee from a logged-in character: Accounting, Broker Relations and
  * NPC standings toward the station owner, or the tax actually charged on its recent sales when there are any.
+ *
+ * Opens on the account's default character (the "Default" star on the Profit page) and applies its rates once
+ * on load, so the formulas use that character without a click. Picking another character here is for this
+ * page only and needs "Use these rates".
  */
 export function CharacterFees({
   onApply,
@@ -73,18 +77,25 @@ export function CharacterFees({
 }) {
   const me = useQuery<MeResponse>({ queryKey: ["/api/me"] });
   const saved = loadChoice();
-  const [characterId, setCharacterId] = useState<number | undefined>(
-    saved.characterId,
-  );
+  const [characterId, setCharacterId] = useState<number | undefined>();
+  const autoApplied = useRef(false);
   const [stationId, setStationId] = useState<number>(
     saved.stationId ?? MARKET_HUBS[0].stationId,
   );
 
   const chars = me.data?.characters ?? [];
+  const defaultId = me.data?.defaultCharacterId ?? null;
+  // The default character wins; without one, the last character picked here, then the first.
   useEffect(() => {
-    if (chars.length && !chars.some((c) => c.characterId === characterId))
-      setCharacterId(chars[0].characterId);
-  }, [chars, characterId]);
+    if (!chars.length) return;
+    const pick = [defaultId, saved.characterId, chars[0].characterId].find(
+      (id) => id != null && chars.some((c) => c.characterId === id),
+    );
+    setCharacterId(pick ?? undefined);
+    autoApplied.current = false;
+    // re-run only when the account's characters or default change, not on every pick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me.data?.characters.length, defaultId]);
 
   const profile = useQuery<TradeProfile>({
     queryKey: ["/api/me/trade-profile", characterId, stationId],
@@ -96,6 +107,18 @@ export function CharacterFees({
     enabled: !!characterId,
     staleTime: 10 * 60 * 1000,
   });
+
+  // Feed the default character's rates into the formulas once per page load.
+  useEffect(() => {
+    const p = profile.data;
+    if (autoApplied.current || !p || characterId == null || characterId !== defaultId) return;
+    if (p.characterId !== characterId || (p.salesTax.value == null && p.brokerFee.value == null)) return;
+    autoApplied.current = true;
+    onApply({
+      salesTax: p.salesTax.value ?? undefined,
+      brokerFee: p.brokerFee.value ?? undefined,
+    });
+  }, [profile.data, characterId, defaultId, onApply]);
 
   if (me.isLoading) return null;
   if (chars.length === 0) {

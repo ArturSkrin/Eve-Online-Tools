@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatISKCompact, formatNumber, timeAgo } from "@/lib/format";
-import { AlertTriangle, LogIn, LogOut, RefreshCw, Trash2, UserPlus, Wallet } from "lucide-react";
+import { AlertTriangle, LogIn, LogOut, RefreshCw, Star, Trash2, UserPlus, Wallet } from "lucide-react";
 import type { LedgerItemRow, LedgerResponse, MeResponse } from "@shared/schema";
 
 const PERIODS = [
@@ -195,6 +195,15 @@ export default function ProfitPage() {
     },
   });
 
+  const setDefault = useMutation({
+    mutationFn: (characterId: number | null) => apiRequest("PUT", "/api/me/default-character", { characterId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
+      // fee panels and the skills page read their rates from the default character
+      queryClient.invalidateQueries({ queryKey: ["/api/me/trade-profile"] });
+    },
+  });
+
   const removeChar = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/me/characters/${id}`),
     onSuccess: refresh,
@@ -246,7 +255,13 @@ export default function ProfitPage() {
         <Card>
           <CardContent className="p-3 flex flex-wrap items-center gap-3">
             {me.data!.characters.map((c) => (
-              <div key={c.characterId} className="flex items-center gap-2 rounded-md border px-2 py-1.5" data-testid={`char-${c.characterId}`}>
+              <div
+                key={c.characterId}
+                className={`flex items-center gap-2 rounded-md border px-2 py-1.5 ${
+                  c.characterId === me.data!.defaultCharacterId ? "border-primary/50 bg-primary/5" : ""
+                }`}
+                data-testid={`char-${c.characterId}`}
+              >
                 <img
                   src={`https://images.evetech.net/characters/${c.characterId}/portrait?size=64`}
                   alt=""
@@ -265,6 +280,26 @@ export default function ProfitPage() {
                     </div>
                   )}
                 </div>
+                {c.characterId === me.data!.defaultCharacterId ? (
+                  <button
+                    onClick={() => setDefault.mutate(null)}
+                    className="flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 font-mono text-[10px] text-primary"
+                    title="Skills and standings of this character go into the calculators. Click to clear."
+                    data-testid={`button-default-${c.characterId}`}
+                  >
+                    <Star className="w-3 h-3 fill-current" /> Default
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setDefault.mutate(c.characterId)}
+                    disabled={setDefault.isPending}
+                    className="flex items-center gap-1 rounded border border-transparent px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:border-border hover:text-foreground"
+                    title="Use this character's skills and standings in the calculators"
+                    data-testid={`button-default-${c.characterId}`}
+                  >
+                    <Star className="w-3 h-3" /> Default
+                  </button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

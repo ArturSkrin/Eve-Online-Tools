@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS eve_accounts (
   id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE eve_accounts ADD COLUMN IF NOT EXISTS default_character_id BIGINT;
 
 CREATE TABLE IF NOT EXISTS eve_characters (
   character_id BIGINT PRIMARY KEY,

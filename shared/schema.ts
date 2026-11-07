@@ -298,6 +298,8 @@ export const NEURALINK_REACTION = {
 export const eveAccounts = pgTable("eve_accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  /** The character whose skills and standings feed the calculators by default. */
+  defaultCharacterId: bigint("default_character_id", { mode: "number" }),
 });
 
 export const eveCharacters = pgTable("eve_characters", {
@@ -379,7 +381,9 @@ export interface CharacterSummary {
 
 export interface MeResponse {
   ssoConfigured: boolean;
+  /** Default character first, then by name. */
   characters: CharacterSummary[];
+  defaultCharacterId: number | null;
 }
 
 export interface LedgerItemRow {

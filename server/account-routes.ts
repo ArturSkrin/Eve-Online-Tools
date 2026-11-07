@@ -1,7 +1,7 @@
 import type { Express, Request } from "express";
 import { and, eq } from "drizzle-orm";
 import { db } from "./db";
-import { eveCharacters, type MeResponse } from "@shared/schema";
+import { eveAccounts, eveCharacters, type MeResponse } from "@shared/schema";
 import { isSsoConfigured, requireAccount } from "./auth";
 import { deleteCharacterData, isSyncing, syncAccount } from "./character-sync";
 import { buildLedger, setCostOverride } from "./ledger";
@@ -17,8 +17,16 @@ export function registerAccountRoutes(app: Express) {
       const chars = accountId
         ? await db.select().from(eveCharacters).where(eq(eveCharacters.accountId, accountId))
         : [];
+      const [account] = accountId ? await db.select().from(eveAccounts).where(eq(eveAccounts.id, accountId)) : [];
+      const defaultId = chars.some((c) => c.characterId === account?.defaultCharacterId)
+        ? account!.defaultCharacterId!
+        : null;
+      chars.sort((a, b) =>
+        a.characterId === defaultId ? -1 : b.characterId === defaultId ? 1 : a.name.localeCompare(b.name),
+      );
       const body: MeResponse = {
         ssoConfigured: isSsoConfigured(),
+        defaultCharacterId: defaultId,
         characters: chars.map((c) => ({
           characterId: c.characterId,
           name: c.name,
@@ -29,6 +37,28 @@ export function registerAccountRoutes(app: Express) {
         })),
       };
       res.json(body);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // The character the calculators use by default; null clears it.
+  app.put("/api/me/default-character", requireAccount, async (req, res, next) => {
+    try {
+      const raw = req.body?.characterId;
+      const characterId = raw == null ? null : Number(raw);
+      if (characterId != null) {
+        const [ch] = await db
+          .select()
+          .from(eveCharacters)
+          .where(and(eq(eveCharacters.characterId, characterId), eq(eveCharacters.accountId, req.session.accountId!)));
+        if (!ch) return res.status(404).json({ message: "Character not found" });
+      }
+      await db
+        .update(eveAccounts)
+        .set({ defaultCharacterId: characterId })
+        .where(eq(eveAccounts.id, req.session.accountId!));
+      res.json({ ok: true });
     } catch (err) {
       next(err);
     }
