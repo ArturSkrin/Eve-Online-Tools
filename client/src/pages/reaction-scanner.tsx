@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CharacterFees } from "@/components/character-fees";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatISKCompact, formatNumber, timeAgo } from "@/lib/format";
-import { AlertTriangle, ChevronDown, ChevronRight, Cloud, FlaskConical, Fuel, RefreshCw, Repeat } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, Cloud, FlaskConical, Fuel, RefreshCw, Repeat } from "lucide-react";
 import type { ReactionMarketResponse } from "@shared/schema";
 import {
   CATEGORIES,
@@ -37,12 +37,56 @@ function loadSettings(): { settings: ScannerSettings; slots: number } {
 const isk = (v: number | null) => (v == null ? "—" : `${v < 0 ? "−" : ""}${formatISKCompact(Math.abs(v))}`);
 const signClass = (v: number | null) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-chart-2" : "text-destructive");
 
-type SortKey = "iskPerDay" | "margin" | "vsInputs";
-const SORTS: Array<{ id: SortKey; label: string }> = [
-  { id: "iskPerDay", label: "ISK в день" },
-  { id: "margin", label: "Маржа" },
-  { id: "vsInputs", label: "Против продажи сырья" },
-];
+type SortKey = "name" | "iskPerDay" | "profit" | "margin" | "vsInputs" | "market" | "cycle";
+type SortDir = "asc" | "desc";
+
+const SORT_VALUE: Record<SortKey, (r: ReactionResult) => number | string | null> = {
+  name: (r) => r.product.name,
+  iskPerDay: (r) => r.iskPerDay,
+  profit: (r) => r.profit,
+  margin: (r) => r.marginPercent,
+  vsInputs: (r) => r.vsSellingInputs,
+  market: (r) => r.marketPerDay,
+  cycle: (r) => r.runSeconds,
+};
+
+/** Column header that sorts the table: first click on numbers sorts high→low, on names A→Z; again flips. */
+function SortHeader({
+  id,
+  label,
+  sort,
+  onSort,
+  align = "right",
+  title,
+}: {
+  id: SortKey;
+  label: string;
+  sort: { key: SortKey; dir: SortDir };
+  onSort: (key: SortKey) => void;
+  align?: "left" | "right";
+  title?: string;
+}) {
+  const active = sort.key === id;
+  const Arrow = sort.dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th
+      className={`font-normal px-3 py-2 ${align === "right" ? "text-right" : "text-left"}`}
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      title={title}
+    >
+      <button
+        onClick={() => onSort(id)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${
+          align === "right" ? "flex-row-reverse" : ""
+        } ${active ? "text-foreground" : ""}`}
+        data-testid={`sort-${id}`}
+      >
+        {label}
+        <Arrow className={`w-3 h-3 shrink-0 ${active ? "opacity-100 text-primary" : "opacity-0"}`} />
+      </button>
+    </th>
+  );
+}
 
 /**
  * Give each slot to the formula that adds the most ISK per day, knowing that a second slot on the same
@@ -220,7 +264,9 @@ export default function ReactionScannerPage() {
   const [settings, setSettings] = useState<ScannerSettings>(initial.settings);
   const [slots, setSlots] = useState(initial.slots);
   const [category, setCategory] = useState<Category | "all">("gas");
-  const [sort, setSort] = useState<SortKey>("iskPerDay");
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "iskPerDay", dir: "desc" });
+  const onSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const set = <K extends keyof ScannerSettings>(k: K, v: ScannerSettings[K]) => setSettings((s) => ({ ...s, [k]: v }));
@@ -257,12 +303,18 @@ export default function ReactionScannerPage() {
 
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const key = (r: ReactionResult) =>
-      sort === "iskPerDay" ? r.iskPerDay : sort === "margin" ? r.marginPercent : r.vsSellingInputs;
+    const value = SORT_VALUE[sort.key];
+    const sign = sort.dir === "asc" ? 1 : -1;
     return results
       .filter((r) => category === "all" || r.category === category)
       .filter((r) => !q || r.product.name.toLowerCase().includes(q) || r.inputs.some((i) => i.name.toLowerCase().includes(q)))
-      .sort((a, b) => (key(b) ?? -Infinity) - (key(a) ?? -Infinity));
+      .sort((a, b) => {
+        const x = value(a);
+        const y = value(b);
+        // rows without a number (missing price) always go to the bottom, whichever the direction
+        if (x == null || y == null) return x == null ? (y == null ? 0 : 1) : -1;
+        return typeof x === "string" ? sign * x.localeCompare(y as string) : sign * (x - (y as number));
+      });
   }, [results, category, sort, search]);
 
   const plan = useMemo(
@@ -418,22 +470,8 @@ export default function ReactionScannerPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Поиск по продукту или сырью"
-          className="h-9 w-56 font-mono text-xs"
+          className="h-9 w-full sm:w-96 font-mono text-xs"
         />
-        <div className="flex items-center gap-1 ml-auto">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mr-1">Сортировка</span>
-          {SORTS.map((s) => (
-            <Button
-              key={s.id}
-              size="sm"
-              variant={sort === s.id ? "secondary" : "ghost"}
-              className="h-7 font-mono text-[11px]"
-              onClick={() => setSort(s.id)}
-            >
-              {s.label}
-            </Button>
-          ))}
-        </div>
       </div>
 
       {/* Results */}
@@ -445,17 +483,13 @@ export default function ReactionScannerPage() {
             <table className="w-full font-mono text-xs">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wider text-muted-foreground border-b">
-                  <th className="text-left font-normal px-3 py-2">Продукт</th>
-                  <th className="text-right font-normal px-3 py-2" title="Прибыль в сутки с одного слота, не больше вашей доли рынка">
-                    ISK/сутки на слот
-                  </th>
-                  <th className="text-right font-normal px-3 py-2">Прибыль/запуск</th>
-                  <th className="text-right font-normal px-3 py-2">Маржа</th>
-                  <th className="text-right font-normal px-3 py-2" title="Выход − запуск − сколько дало бы сырьё, если его просто продать">
-                    vs продажи сырья
-                  </th>
-                  <th className="text-right font-normal px-3 py-2">Вы / рынок в сутки</th>
-                  <th className="text-right font-normal px-3 py-2">Цикл</th>
+                  <SortHeader id="name" label="Продукт" align="left" sort={sort} onSort={onSort} />
+                  <SortHeader id="iskPerDay" label="ISK/сутки на слот" sort={sort} onSort={onSort} title="Прибыль в сутки с одного слота, не больше вашей доли рынка" />
+                  <SortHeader id="profit" label="Прибыль/запуск" sort={sort} onSort={onSort} />
+                  <SortHeader id="margin" label="Маржа" sort={sort} onSort={onSort} />
+                  <SortHeader id="vsInputs" label="vs продажи сырья" sort={sort} onSort={onSort} title="Выход − запуск − сколько дало бы сырьё, если его просто продать" />
+                  <SortHeader id="market" label="Вы / рынок в сутки" sort={sort} onSort={onSort} title="Сортирует по объёму рынка" />
+                  <SortHeader id="cycle" label="Цикл" sort={sort} onSort={onSort} />
                 </tr>
               </thead>
               <tbody>
