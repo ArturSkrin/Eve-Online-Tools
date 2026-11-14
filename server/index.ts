@@ -8,6 +8,7 @@ import { isSsoConfigured, registerAuthRoutes, setupSession } from "./auth";
 import { registerAccountRoutes } from "./account-routes";
 import { startBackgroundSync, syncCharacter } from "./character-sync";
 import { marketSnapshot, refreshMarket, startMarketRefresh } from "./market-cache";
+import { registerNullsecRoutes, startNullsecRefresh } from "./nullsec";
 
 const app = express();
 const httpServer = createServer(app);
@@ -109,6 +110,8 @@ process.on("beforeExit", (code) => {
   registerAccountRoutes(app);
   if (isSsoConfigured()) startBackgroundSync();
   startMarketRefresh();
+  registerNullsecRoutes(app);
+  if (isSsoConfigured()) startNullsecRefresh();
 
   // Reaction scanner market data: cached Jita prices and daily volumes (see server/market-cache.ts).
   app.get("/api/reactions/market", async (_req, res, next) => {

@@ -137,6 +137,52 @@ CREATE TABLE IF NOT EXISTS market_volumes (
 ALTER TABLE market_volumes ADD COLUMN IF NOT EXISTS high_median_7 DOUBLE PRECISION;
 ALTER TABLE market_volumes ADD COLUMN IF NOT EXISTS trade_days_30 INTEGER;
 
+CREATE TABLE IF NOT EXISTS market_structures (
+  account_id VARCHAR NOT NULL,
+  structure_id BIGINT NOT NULL,
+  name TEXT NOT NULL,
+  system_id INTEGER,
+  system_name TEXT,
+  region_id INTEGER,
+  region_name TEXT,
+  character_id BIGINT NOT NULL,
+  last_snapshot_at TIMESTAMPTZ,
+  last_error TEXT,
+  order_count INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (account_id, structure_id)
+);
+
+CREATE TABLE IF NOT EXISTS structure_market (
+  structure_id BIGINT NOT NULL,
+  type_id INTEGER NOT NULL,
+  sell_min DOUBLE PRECISION,
+  sell_volume BIGINT NOT NULL DEFAULT 0,
+  buy_max DOUBLE PRECISION,
+  buy_volume BIGINT NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (structure_id, type_id)
+);
+
+CREATE TABLE IF NOT EXISTS region_history (
+  region_id INTEGER NOT NULL,
+  type_id INTEGER NOT NULL,
+  avg_volume_30 DOUBLE PRECISION NOT NULL,
+  avg_price_7 DOUBLE PRECISION,
+  high_median_7 DOUBLE PRECISION,
+  trade_days_30 INTEGER,
+  updated_at TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY (region_id, type_id)
+);
+
+CREATE TABLE IF NOT EXISTS type_info (
+  type_id INTEGER PRIMARY KEY,
+  name TEXT NOT NULL,
+  group_id INTEGER,
+  volume DOUBLE PRECISION NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS cost_overrides (
   account_id VARCHAR NOT NULL,
   type_id INTEGER NOT NULL,

@@ -502,3 +502,94 @@ export interface ReactionMarketResponse {
   refreshing: boolean;
   lastError: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Nullsec import scanner: player structure markets and regional history
+// ---------------------------------------------------------------------------
+
+export const marketStructures = pgTable(
+  "market_structures",
+  {
+    accountId: varchar("account_id").notNull(),
+    structureId: bigint("structure_id", { mode: "number" }).notNull(),
+    name: text("name").notNull(),
+    systemId: integer("system_id"),
+    systemName: text("system_name"),
+    regionId: integer("region_id"),
+    regionName: text("region_name"),
+    /** The character whose token reads this market (needs docking/market access there). */
+    characterId: bigint("character_id", { mode: "number" }).notNull(),
+    lastSnapshotAt: timestamp("last_snapshot_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    orderCount: integer("order_count"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.structureId] })],
+);
+
+/** Current stock of one structure market, summed per type. Rows stay at zero once a type sells out. */
+export const structureMarket = pgTable(
+  "structure_market",
+  {
+    structureId: bigint("structure_id", { mode: "number" }).notNull(),
+    typeId: integer("type_id").notNull(),
+    sellMin: doublePrecision("sell_min"),
+    sellVolume: bigint("sell_volume", { mode: "number" }).notNull().default(0),
+    buyMax: doublePrecision("buy_max"),
+    buyVolume: bigint("buy_volume", { mode: "number" }).notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.structureId, t.typeId] })],
+);
+
+/** Daily trading summary per region. In sovereign null this is the player structures' trades. */
+export const regionHistory = pgTable(
+  "region_history",
+  {
+    regionId: integer("region_id").notNull(),
+    typeId: integer("type_id").notNull(),
+    avgVolume30: doublePrecision("avg_volume_30").notNull(),
+    avgPrice7: doublePrecision("avg_price_7"),
+    highMedian7: doublePrecision("high_median_7"),
+    tradeDays30: integer("trade_days_30"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.regionId, t.typeId] })],
+);
+
+export const typeInfo = pgTable("type_info", {
+  typeId: integer("type_id").primaryKey(),
+  name: text("name").notNull(),
+  groupId: integer("group_id"),
+  /** Packaged volume, m³. */
+  volume: doublePrecision("volume").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
+
+export interface MarketStructureSummary {
+  structureId: number;
+  name: string;
+  systemName: string | null;
+  regionId: number | null;
+  regionName: string | null;
+  characterName: string | null;
+  lastSnapshotAt: string | null;
+  lastError: string | null;
+  orderCount: number | null;
+}
+
+export interface ImportRow {
+  typeId: number;
+  name: string;
+  volume: number | null;
+  local: { sellMin: number | null; sellVolume: number; buyMax: number | null; buyVolume: number };
+  jita: { sell: number | null; buy: number | null };
+  region: { avgVolume30: number; highMedian7: number | null; avgPrice7: number | null; tradeDays30: number | null } | null;
+}
+
+export interface ImportResponse {
+  structure: MarketStructureSummary;
+  rows: ImportRow[];
+  jitaUpdatedAt: string | null;
+  historyCoverage: { withHistory: number; total: number };
+}

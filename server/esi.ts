@@ -269,3 +269,59 @@ export async function getMarketHistory(regionId: number, typeId: number): Promis
   const { data } = await esiFetch<EsiHistoryDay[]>(`/markets/${regionId}/history/`, { type_id: String(typeId) });
   return data;
 }
+
+export interface EsiRegionOrder {
+  order_id: number;
+  type_id: number;
+  is_buy_order: boolean;
+  price: number;
+  volume_remain: number;
+  location_id: number;
+  system_id: number;
+}
+
+/**
+ * Every order of a region, page by page (The Forge is ~400 pages of 1000). Far cheaper than two requests
+ * per type once more than a few hundred types are needed: ESI allows 12 000 market requests per 15 minutes.
+ */
+export async function forEachRegionOrderPage(regionId: number, onPage: (orders: EsiRegionOrder[]) => void): Promise<number> {
+  const first = await esiFetch<EsiRegionOrder[]>(`/markets/${regionId}/orders/`, { order_type: "all", page: "1" });
+  onPage(first.data);
+  const pages = Array.from({ length: Math.max(0, first.pages - 1) }, (_, i) => i + 2);
+  for (let i = 0; i < pages.length; i += 8) {
+    await Promise.all(
+      pages.slice(i, i + 8).map(async (page) => {
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const { data } = await esiFetch<EsiRegionOrder[]>(`/markets/${regionId}/orders/`, {
+              order_type: "all",
+              page: String(page),
+            });
+            onPage(data);
+            return;
+          } catch (err) {
+            if (attempt >= 2) throw err;
+            await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+          }
+        }
+      }),
+    );
+  }
+  return first.pages;
+}
+
+export interface EsiTypeDetails {
+  name: string;
+  groupId: number;
+  /** Packaged volume when the item has one (ships), else its volume: what a freighter actually carries. */
+  volume: number;
+  published: boolean;
+}
+
+export async function getTypeDetails(typeId: number): Promise<EsiTypeDetails> {
+  const { data } = await esiFetch<{ name: string; group_id: number; volume?: number; packaged_volume?: number; published: boolean }>(
+    `/universe/types/${typeId}/`,
+  );
+  typeNameCache.set(typeId, data.name);
+  return { name: data.name, groupId: data.group_id, volume: data.packaged_volume ?? data.volume ?? 0, published: data.published };
+}

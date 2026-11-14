@@ -1,4 +1,4 @@
-import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet, GraduationCap } from "lucide-react";
+import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet, GraduationCap, Truck } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -24,6 +24,11 @@ const accountItems = [
     title: "Skills",
     url: "/skills",
     icon: GraduationCap,
+  },
+  {
+    title: "Nullsec Import",
+    url: "/nullsec/import",
+    icon: Truck,
   },
 ];
 

@@ -15,6 +15,7 @@ import ReactionScannerPage from "@/pages/reaction-scanner";
 import ImplantsPage from "@/pages/implants";
 import ProfitPage from "@/pages/profit";
 import SkillsPage from "@/pages/skills";
+import NullsecImportPage from "@/pages/nullsec-import";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/implants" component={ImplantsPage} />
       <Route path="/profit" component={ProfitPage} />
       <Route path="/skills" component={SkillsPage} />
+      <Route path="/nullsec/import" component={NullsecImportPage} />
       <Route component={NotFound} />
     </Switch>
   );

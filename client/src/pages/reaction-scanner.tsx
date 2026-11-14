@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CharacterFees } from "@/components/character-fees";
+import { SortHeader, nextSort, type SortDir } from "@/components/sort-header";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatISKCompact, formatNumber, timeAgo } from "@/lib/format";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, Cloud, FlaskConical, Fuel, RefreshCw, Repeat } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Cloud, FlaskConical, Fuel, RefreshCw, Repeat } from "lucide-react";
 import type { ReactionMarketResponse } from "@shared/schema";
 import {
   CATEGORIES,
@@ -38,7 +39,6 @@ const isk = (v: number | null) => (v == null ? "—" : `${v < 0 ? "−" : ""}${f
 const signClass = (v: number | null) => (v == null ? "text-muted-foreground" : v >= 0 ? "text-chart-2" : "text-destructive");
 
 type SortKey = "name" | "iskPerDay" | "profit" | "margin" | "vsInputs" | "market" | "cycle";
-type SortDir = "asc" | "desc";
 
 const SORT_VALUE: Record<SortKey, (r: ReactionResult) => number | string | null> = {
   name: (r) => r.product.name,
@@ -50,43 +50,6 @@ const SORT_VALUE: Record<SortKey, (r: ReactionResult) => number | string | null>
   cycle: (r) => r.runSeconds,
 };
 
-/** Column header that sorts the table: first click on numbers sorts high→low, on names A→Z; again flips. */
-function SortHeader({
-  id,
-  label,
-  sort,
-  onSort,
-  align = "right",
-  title,
-}: {
-  id: SortKey;
-  label: string;
-  sort: { key: SortKey; dir: SortDir };
-  onSort: (key: SortKey) => void;
-  align?: "left" | "right";
-  title?: string;
-}) {
-  const active = sort.key === id;
-  const Arrow = sort.dir === "asc" ? ArrowUp : ArrowDown;
-  return (
-    <th
-      className={`font-normal px-3 py-2 ${align === "right" ? "text-right" : "text-left"}`}
-      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-      title={title}
-    >
-      <button
-        onClick={() => onSort(id)}
-        className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-foreground ${
-          align === "right" ? "flex-row-reverse" : ""
-        } ${active ? "text-foreground" : ""}`}
-        data-testid={`sort-${id}`}
-      >
-        {label}
-        <Arrow className={`w-3 h-3 shrink-0 ${active ? "opacity-100 text-primary" : "opacity-0"}`} />
-      </button>
-    </th>
-  );
-}
 
 /**
  * Give each slot to the formula that adds the most ISK per day, knowing that a second slot on the same
@@ -282,7 +245,7 @@ export default function ReactionScannerPage() {
   const [category, setCategory] = useState<Category | "all">("gas");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "iskPerDay", dir: "desc" });
   const onSort = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
+    setSort((s) => nextSort(s, key, key === "name" ? "asc" : "desc"));
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState<number | null>(null);
   const set = <K extends keyof ScannerSettings>(k: K, v: ScannerSettings[K]) => setSettings((s) => ({ ...s, [k]: v }));

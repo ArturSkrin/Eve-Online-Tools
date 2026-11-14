@@ -20,6 +20,9 @@ export const SSO_SCOPES = [
   // Accounting / Broker Relations and NPC standings: the calculators turn them into sales tax and broker fee.
   "esi-skills.read_skills.v1",
   "esi-characters.read_standings.v1",
+  // Nullsec import scanner: orders on player structure markets, and the structures' names and systems.
+  "esi-markets.structure_markets.v1",
+  "esi-universe.read_structures.v1",
 ];
 
 declare module "express-session" {

@@ -1,13 +1,14 @@
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { db } from "./db";
-import { getMarketHistory, getMarketPrices, getRegionOrders, getSystemCostIndices } from "./esi";
+import { forEachRegionOrderPage, getMarketHistory, getMarketPrices, getSystemCostIndices, type EsiHistoryDay } from "./esi";
 import { marketPrices, marketVolumes, type ReactionMarketResponse } from "@shared/schema";
 import { REACTION_DATA } from "@shared/reactions";
 import { log } from "./index";
 
 // Jita prices and The Forge daily volumes for every item that goes into or comes out of a reaction, kept in
 // Postgres so the scanner page loads instantly and survives ESI outages with the last known numbers.
-const THE_FORGE = 10000002;
+export const THE_FORGE = 10000002;
+const JITA_SYSTEM = 30000142;
 const IKOSKIO = { systemId: 30045337, systemName: "Ikoskio" };
 const PRICES_EVERY_MS = 30 * 60 * 1000;
 const HISTORY_EVERY_MS = 12 * 60 * 60 * 1000;
@@ -23,7 +24,7 @@ export function trackedTypes(): number[] {
   return Array.from(ids).sort((a, b) => a - b);
 }
 
-async function inBatches<T>(items: T[], fn: (item: T) => Promise<void>): Promise<number> {
+export async function inBatches<T>(items: T[], fn: (item: T) => Promise<void>): Promise<number> {
   let failed = 0;
   for (let i = 0; i < items.length; i += CONCURRENCY) {
     const results = await Promise.allSettled(items.slice(i, i + CONCURRENCY).map(fn));
@@ -35,49 +36,68 @@ async function inBatches<T>(items: T[], fn: (item: T) => Promise<void>): Promise
 let refreshing = false;
 let lastError: string | null = null;
 
+/**
+ * Jita best sell and buy for every type traded there, from one pass over all The Forge orders. Serves the
+ * reaction scanner and the nullsec import scanner alike.
+ */
 export async function refreshPrices(): Promise<void> {
-  const types = trackedTypes();
-  const now = new Date();
-  let firstError: string | null = null;
-  const failed = await inBatches(types, async (typeId) => {
-    try {
-      const o = await getRegionOrders(THE_FORGE, typeId);
-      await db
-        .insert(marketPrices)
-        .values({ typeId, sellMin: o.sellMin || null, buyMax: o.buyMax || null, updatedAt: now })
-        .onConflictDoUpdate({
-          target: marketPrices.typeId,
-          set: { sellMin: o.sellMin || null, buyMax: o.buyMax || null, updatedAt: now },
-        });
-    } catch (err) {
-      firstError ??= err instanceof Error ? err.message : String(err);
-      throw err;
+  const best = new Map<number, { sell: number | null; buy: number | null }>();
+  const pages = await forEachRegionOrderPage(THE_FORGE, (orders) => {
+    for (const o of orders) {
+      if (o.system_id !== JITA_SYSTEM) continue;
+      const b = best.get(o.type_id) ?? { sell: null, buy: null };
+      if (o.is_buy_order) b.buy = b.buy == null ? o.price : Math.max(b.buy, o.price);
+      else b.sell = b.sell == null ? o.price : Math.min(b.sell, o.price);
+      best.set(o.type_id, b);
     }
   });
-  lastError = failed ? `${failed} из ${types.length} цен не обновились: ${firstError}` : null;
-  log(`reaction prices: ${types.length - failed}/${types.length} updated`, "market");
+  const now = new Date();
+  const rows = Array.from(best.entries()).map(([typeId, b]) => ({ typeId, sellMin: b.sell, buyMax: b.buy, updatedAt: now }));
+  for (let i = 0; i < rows.length; i += 1000) {
+    await db
+      .insert(marketPrices)
+      .values(rows.slice(i, i + 1000))
+      .onConflictDoUpdate({
+        target: marketPrices.typeId,
+        set: { sellMin: sql`excluded.sell_min`, buyMax: sql`excluded.buy_max`, updatedAt: now },
+      });
+  }
+  // Types with no Jita order left keep their last row; mark them gone so nothing is priced off stale orders.
+  await db
+    .update(marketPrices)
+    .set({ sellMin: null, buyMax: null, updatedAt: now })
+    .where(sql`${marketPrices.updatedAt} < ${now}`);
+  lastError = null;
+  log(`jita prices: ${rows.length} types from ${pages} pages`, "market");
+}
+
+/** Daily volume and traded prices from one type's market history. */
+export function summarizeHistory(days: EsiHistoryDay[]) {
+  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const since7 = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
+  const last30 = days.filter((d) => d.date >= since30);
+  const last7 = days.filter((d) => d.date >= since7);
+  const avgVolume30 = last30.reduce((s, d) => s + d.volume, 0) / 30;
+  const vol7 = last7.reduce((s, d) => s + d.volume, 0);
+  const avgPrice7 = vol7 > 0 ? last7.reduce((s, d) => s + d.average * d.volume, 0) / vol7 : null;
+  // The day's highest trade is about where sell orders got filled (the daily average also mixes in sales
+  // into buy orders). The median of the last 7 trading days ignores a single panic buy.
+  const highs = last30
+    .slice(-7)
+    .map((d) => d.highest)
+    .sort((a, b) => a - b);
+  const highMedian7 = highs.length ? highs[Math.floor(highs.length / 2)] : null;
+  const tradeDays30 = last30.filter((d) => d.volume > 0).length;
+  return { avgVolume30, avgPrice7, highMedian7, tradeDays30 };
 }
 
 export async function refreshHistory(): Promise<void> {
   const types = trackedTypes();
   const now = new Date();
-  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
-  const since7 = new Date(Date.now() - 7 * 86_400_000).toISOString().slice(0, 10);
   const failed = await inBatches(types, async (typeId) => {
-    const days = await getMarketHistory(THE_FORGE, typeId);
-    const last30 = days.filter((d) => d.date >= since30);
-    const last7 = days.filter((d) => d.date >= since7);
-    const avgVolume30 = last30.reduce((s, d) => s + d.volume, 0) / 30;
-    const vol7 = last7.reduce((s, d) => s + d.volume, 0);
-    const avgPrice7 = vol7 > 0 ? last7.reduce((s, d) => s + d.average * d.volume, 0) / vol7 : null;
-    // The day's highest trade is about where sell orders got filled (the daily average also mixes in sales
-    // into buy orders). The median of the last 7 trading days ignores a single panic buy.
-    const highs = last30
-      .slice(-7)
-      .map((d) => d.highest)
-      .sort((a, b) => a - b);
-    const highMedian7 = highs.length ? highs[Math.floor(highs.length / 2)] : null;
-    const tradeDays30 = last30.filter((d) => d.volume > 0).length;
+    const { avgVolume30, avgPrice7, highMedian7, tradeDays30 } = summarizeHistory(
+      await getMarketHistory(THE_FORGE, typeId),
+    );
     await db
       .insert(marketVolumes)
       .values({ typeId, avgVolume30, avgPrice7, highMedian7, tradeDays30, updatedAt: now })
@@ -141,7 +161,7 @@ async function costIndex(): Promise<ReactionMarketResponse["costIndex"]> {
 
 export async function marketSnapshot(): Promise<ReactionMarketResponse> {
   const [prices, volumes, adjusted, index] = await Promise.all([
-    db.select().from(marketPrices),
+    db.select().from(marketPrices).where(inArray(marketPrices.typeId, trackedTypes())),
     db.select().from(marketVolumes),
     // ESI being down must not blank the page: fall back to the last values (or nothing) for these two.
     adjustedPrices().catch(() => adjustedCache?.data ?? {}),
