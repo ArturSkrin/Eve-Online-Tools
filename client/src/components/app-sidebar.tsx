@@ -1,4 +1,4 @@
-import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet, GraduationCap, Truck } from "lucide-react";
+import { Search, Factory, History, BookmarkCheck, TrendingUp, FlaskConical, Beaker, Cpu, Wallet, GraduationCap, Truck, Map as MapIcon } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import {
   Sidebar,
@@ -60,6 +60,11 @@ const reactionItems = [
     title: "Reaction Scanner",
     url: "/reactions/scanner",
     icon: FlaskConical,
+  },
+  {
+    title: "Gas Map",
+    url: "/reactions/gas-map",
+    icon: MapIcon,
   },
   {
     title: "Neuralink Enhancer",

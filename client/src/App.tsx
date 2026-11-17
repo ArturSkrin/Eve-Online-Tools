@@ -16,6 +16,7 @@ import ImplantsPage from "@/pages/implants";
 import ProfitPage from "@/pages/profit";
 import SkillsPage from "@/pages/skills";
 import NullsecImportPage from "@/pages/nullsec-import";
+import GasMapPage from "@/pages/gas-map";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/contracts/history" component={HistoryPage} />
       <Route path="/reactions" component={ReactionsPage} />
       <Route path="/reactions/scanner" component={ReactionScannerPage} />
+      <Route path="/reactions/gas-map" component={GasMapPage} />
       <Route path="/implants" component={ImplantsPage} />
       <Route path="/profit" component={ProfitPage} />
       <Route path="/skills" component={SkillsPage} />
